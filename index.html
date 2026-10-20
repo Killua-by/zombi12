@@ -552,13 +552,12 @@ function makeNightMask() {
   const S = NIGHT_MASK_SIZE;
   const c = makeCanvas(S, S);
   const g = c.getContext('2d');
-  const grad = g.createRadialGradient(S/2, S/2, S*0.05, S/2, S/2, S/2);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.15, 'rgba(255,255,255,0.98)');
-  grad.addColorStop(0.35, 'rgba(255,255,255,0.75)');
-  grad.addColorStop(0.55, 'rgba(255,255,255,0.4)');
-  grad.addColorStop(0.75, 'rgba(255,255,255,0.12)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  const grad = g.createRadialGradient(S/2, S/2, S*0.1, S/2, S/2, S/2);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');     // Центр — прозрачный (светло)
+  grad.addColorStop(0.25, 'rgba(255,255,255,0.95)'); // Чуть дальше — ещё светло
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.6)');   // Середина — полумрак
+  grad.addColorStop(0.75, 'rgba(255,255,255,0.2)');  // Дальше — темно
+  grad.addColorStop(1, 'rgba(255,255,255,0)');       // Края — тьма
   g.fillStyle = grad;
   g.fillRect(0, 0, S, S);
   return c;
@@ -787,7 +786,7 @@ function updateHUD() {
   hpText.textContent = `${Math.max(0, Math.ceil(p.hp))} / ${Math.ceil(p.maxHp)}`;
   waveInfo.textContent = game.isBossWave ? '👹 БОСС' : `Волна ${game.wave}`;
   coinsEl.textContent = game.coins;
-  crystalsEl.textContent = game.crystals;
+  crystalsEl.textContent = Math.floor(game.crystals);
   const w = WEAPONS[game.currentWeapon];
   const reserve = game.weaponAmmo[game.currentWeapon];
   const mag = game.magAmmo[game.currentWeapon];
@@ -1979,7 +1978,7 @@ function draw() {
   if (game.isNight) {
     ctx.restore();
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.82)';
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'destination-out';
     const maskSize = Math.max(W, H) * 1.6;
