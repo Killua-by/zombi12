@@ -13,10 +13,25 @@
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
     touch-action: none; overscroll-behavior: none;
   }
-  canvas { display: block; position: absolute; top: 0; left: 0; touch-action: none; }
-  #ui { position: absolute; inset: 0; pointer-events: none; }
-  .hud-top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding-right: 100px; }
-  .hp-box { background: rgba(10,14,20,0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 10px; width: 140px; }
+  canvas#game { display: block; position: absolute; top: 0; left: 0; touch-action: none; z-index: 1; }
+  /* МИНИ-КАРТА — чётко правый нижний угол, высокий z-index */
+  canvas#minimap {
+    position: fixed !important;
+    bottom: 175px !important;
+    right: 12px !important;
+    top: auto !important;
+    left: auto !important;
+    width: 92px; height: 92px;
+    border: 2px solid rgba(56,189,248,0.6);
+    border-radius: 10px;
+    background: rgba(2,6,23,0.85);
+    pointer-events: none;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+  #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+  .hud-top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .hp-box { background: rgba(10,14,20,0.85); border: 1px solid #334155; border-radius: 10px; padding: 6px 10px; width: 140px; backdrop-filter: blur(4px); }
   .hp-bar-bg { height: 12px; background: #1e293b; border-radius: 6px; overflow: hidden; }
   .hp-bar-fill { height: 100%; background: linear-gradient(90deg,#dc2626,#f87171); transition: width 0.15s; border-radius: 6px; }
   .hp-text { font-size: 11px; font-weight: 800; text-align: center; margin-top: 2px; color: #fca5a5; }
@@ -29,16 +44,14 @@
   @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
   .actions { position: absolute; bottom: 10px; right: 10px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
   .action-row { display: flex; gap: 8px; }
-  .btn { pointer-events: auto; width: 60px; height: 60px; border-radius: 14px; border: 1px solid #334155; background: rgba(30,41,59,0.9); color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; font-weight: 800; position: relative; }
+  .btn { pointer-events: auto; width: 58px; height: 58px; border-radius: 14px; border: 1px solid #334155; background: rgba(30,41,59,0.9); color: white; font-size: 22px; display: flex; justify-content: center; align-items: center; font-weight: 800; position: relative; }
   .btn:active { transform: scale(0.92); background: rgba(56,189,248,0.3); }
   .btn:disabled { opacity: 0.35; filter: grayscale(1); }
   .btn.grenade { background: linear-gradient(135deg,#16a34a,#15803d); }
   .btn.barricade { background: linear-gradient(135deg,#a16207,#854d0e); }
   .btn.reload { background: linear-gradient(135deg,#ea580c,#c2410c); }
   .btn .count-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 10px; font-weight: 900; }
-  /* Мини-карта ПЕРЕМЕЩЕНА в правый нижний угол */
-  #minimap { position: absolute; bottom: 150px; right: 10px; width: 90px; height: 90px; border: 2px solid rgba(56,189,248,0.4); border-radius: 8px; background: rgba(2,6,23,0.8); pointer-events: none; z-index: 5; }
-  #screen { position: absolute; inset: 0; background: #0a0e14; z-index: 100; display: none; overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; text-align: center; }
+  #screen { position: absolute; inset: 0; background: #0a0e14; z-index: 200; display: none; overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; text-align: center; }
   #screen.active { display: block; }
   .screen-inner { max-width: 460px; margin: 0 auto; padding: 25px 20px 60px; }
   .title { font-size: 30px; font-weight: 900; letter-spacing: 2px; margin-bottom: 10px; color: #38bdf8; }
@@ -74,7 +87,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
-<canvas id="minimap" width="180" height="180"></canvas>
+<canvas id="minimap" width="184" height="184"></canvas>
 <div id="ui">
   <div class="hud-top">
     <div class="hp-box">
@@ -84,7 +97,7 @@
     <div class="wave-info" id="waveInfo">Волна 1</div>
     <div class="coin-box">💰 <span id="coins">0</span> &nbsp; 💎 <span id="crystals">0</span></div>
   </div>
-  <div class="weapon-info" id="weaponInfo">🔫 Пистолет · Патроны: ∞</div>
+  <div class="weapon-info" id="weaponInfo">🔫 Пистолет · ∞</div>
   <div class="actions">
     <div class="action-row">
       <button class="btn barricade" id="barricadeBtn">🧱<span class="count-badge" id="barricadeCount">2</span></button>
@@ -120,6 +133,10 @@ const grenadeCount = document.getElementById('grenadeCount');
 const barricadeCount = document.getElementById('barricadeCount');
 const pauseBtn = document.getElementById('pauseBtn');
 
+const MAX_PARTICLES = 200;
+const MAX_PICKUPS = 15;
+const MAX_ZOMBIE_DIST = 2500;
+
 let W = 0, H = 0, DPR = 1;
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -150,8 +167,12 @@ try { const saved = localStorage.getItem(META_KEY); if (saved) meta = JSON.parse
 function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch(e) {} }
 
 const SAVE_KEY = 'zombie_save_v2';
+let lastSaveTime = 0;
 function saveGame() {
   if (!game.player || game.state === 'menu' || game.state === 'gameover' || game.state === 'classSelect' || game.state === 'mapSelect') return;
+  const now = performance.now();
+  if (now - lastSaveTime < 1000) return;
+  lastSaveTime = now;
   const save = {
     wave: game.wave, coins: game.coins, crystals: game.crystals, kills: game.kills,
     currentWeapon: game.currentWeapon, weaponAmmo: {...game.weaponAmmo}, magAmmo: {...game.magAmmo},
@@ -171,16 +192,15 @@ function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch(e) {} }
 const CLASSES = [
   { id: 'assault', name: '💪 Штурмовик', desc: 'Много HP, дробовик.', hpMult: 1.4, dmgMult: 1.0, speedMult: 1.0, startWeapon: 'shotgun', color: '#3b82f6' },
   { id: 'sniper', name: '🎯 Снайпер', desc: 'Мало HP, снайперка.', hpMult: 0.7, dmgMult: 1.7, speedMult: 1.0, startWeapon: 'rifle', color: '#fbbf24' },
-  { id: 'engineer', name: '🔧 Инженер', desc: 'Больше гранат/баррикад. Автомат.', hpMult: 1.0, dmgMult: 0.9, speedMult: 1.15, startWeapon: 'smg', color: '#22c55e' }
+  { id: 'engineer', name: '🔧 Инженер', desc: 'Больше гранат/баррикад.', hpMult: 1.0, dmgMult: 0.9, speedMult: 1.15, startWeapon: 'smg', color: '#22c55e' }
 ];
 
 const MAPS = [
-  { id: 'city', name: '🏙️ Город', bg: '#0a0e14', floor: 'tile', obstacleTypes: ['car', 'crate', 'wall'], groundDetails: ['crack', 'manhole', 'tile'], obstacleCount: 12 },
-  { id: 'forest', name: '🌲 Лес', bg: '#0a1410', floor: 'grass', obstacleTypes: ['tree', 'rock', 'bush'], groundDetails: ['grass', 'stone', 'flower'], obstacleCount: 18 },
-  { id: 'bunker', name: '🏭 Бункер', bg: '#0a0e1a', floor: 'line', obstacleTypes: ['crate', 'barrel', 'wall'], groundDetails: ['line', 'sign', 'wire'], obstacleCount: 8 }
+  { id: 'city', name: '🏙️ Город', bg: '#0a0e14', floor: 'tile', accent: '#1e40af', obstacleTypes: ['car', 'crate', 'wall'], groundDetails: ['crack', 'manhole', 'tile'], obstacleCount: 12 },
+  { id: 'forest', name: '🌲 Лес', bg: '#0a1410', floor: 'grass', accent: '#166534', obstacleTypes: ['tree', 'rock', 'bush'], groundDetails: ['grass', 'stone', 'flower'], obstacleCount: 18 },
+  { id: 'bunker', name: '🏭 Бункер', bg: '#0a0e1a', floor: 'line', accent: '#6b21a8', obstacleTypes: ['crate', 'barrel', 'wall'], groundDetails: ['line', 'sign', 'wire'], obstacleCount: 8 }
 ];
 
-// Оружие с магазином и перезарядкой
 const WEAPONS = {
   pistol: { name: 'Пистолет', icon: '🔫', dmg: 14, fireRate: 4.5, speed: 620, spread: 0.05, count: 1, pierce: 0, ammo: -1, cost: 0, range: 1.0, color: '#fde047', magazine: 12, reloadTime: 1.0 },
   shotgun: { name: 'Дробовик', icon: '🔫', dmg: 12, fireRate: 1.8, speed: 700, spread: 0.35, count: 5, pierce: 0, ammo: 360, cost: 120, range: 0.55, color: '#f97316', magazine: 6, reloadTime: 1.8 },
@@ -220,8 +240,7 @@ function createPlayer(className) {
     x: 0, y: 0, vx: 0, vy: 0, r: 14,
     hp: baseHp, maxHp: baseHp,
     speed: 175 * cls.speedMult * (1 + meta.upgrades.speed * 0.05),
-    bodyAngle: -Math.PI/2,
-    angle: -Math.PI/2,
+    bodyAngle: -Math.PI/2, angle: -Math.PI/2,
     fireCooldown: 0, hurtFlash: 0, invuln: 0,
     damageMult: cls.dmgMult * (1 + meta.upgrades.damage * 0.1),
     coinMult: 1 + meta.upgrades.coinDrop * 0.15,
@@ -309,7 +328,6 @@ function updateHUD() {
   reloadBtn.disabled = game.reloading || reserve === -1 || mag >= w.magazine || reserve <= 0;
 }
 
-// ===== ПЕРЕЗАРЯДКА =====
 function startReload() {
   const w = WEAPONS[game.currentWeapon];
   const reserve = game.weaponAmmo[game.currentWeapon];
@@ -358,7 +376,6 @@ function startGame() {
   game.player.x = 0; game.player.y = 0;
   const startWeapon = CLASSES.find(c => c.id === game.selectedClass).startWeapon;
   game.currentWeapon = startWeapon;
-  // 360 патронов на стартовое оружие + полный магазин
   game.weaponAmmo = { pistol: -1, shotgun: 0, smg: 0, rifle: 0, laser: 0, grenadeLauncher: 0 };
   game.magAmmo = { pistol: 12, shotgun: 0, smg: 0, rifle: 0, laser: 0, grenadeLauncher: 0 };
   if (startWeapon !== 'pistol') {
@@ -503,7 +520,9 @@ function spawnBoss() {
   const waveHp = 800 + game.wave * 400;
   game.boss = {
     x: game.player.x, y: game.player.y - Math.max(W, H) * 0.6,
-    r: 55, hp: waveHp, maxHp: waveHp, speed: 35, dmg: 35,
+    r: 55, hp: waveHp, maxHp: waveHp,
+    speed: 55,          // БЫЛО 35 → 55 (ускорен)
+    dmg: 35,
     phase: 1, state: 'chase', stateTimer: 3, angle: 0,
     hitFlash: 0, color: '#7f1d1d', slowMult: 1
   };
@@ -532,29 +551,19 @@ function playerShoot() {
   const p = game.player;
   const w = WEAPONS[game.currentWeapon];
   if (p.fireCooldown > 0) return;
-  
-  // Если магазин пуст — перезарядка
   if (game.magAmmo[game.currentWeapon] <= 0) {
     if (game.weaponAmmo[game.currentWeapon] === -1) {
-      // Пистолет ∞ — просто полный магазин
       game.magAmmo[game.currentWeapon] = w.magazine;
     } else if (game.weaponAmmo[game.currentWeapon] > 0) {
-      startReload();
-      return;
+      startReload(); return;
     } else {
-      // Нет патронов вообще — пистолет
-      game.currentWeapon = 'pistol';
-      updateHUD();
-      return;
+      game.currentWeapon = 'pistol'; updateHUD(); return;
     }
   }
-  
   const target = nearestTarget(p.x, p.y, w.range);
   if (!target) return;
-  
   p.angle = Math.atan2(target.y - p.y, target.x - p.x);
   p.fireCooldown = 1 / w.fireRate;
-  
   if (w.isLaser) fireLaser(p, w);
   else {
     for (let i = 0; i < w.count; i++) {
@@ -569,7 +578,6 @@ function playerShoot() {
       });
     }
   }
-  
   game.magAmmo[game.currentWeapon]--;
   beep(w.isExplosive ? 200 : 300 + Math.random() * 60, 0.04, 'square', 0.02);
   updateHUD();
@@ -590,12 +598,14 @@ function fireLaser(p, w) {
     if (perp < z.r + 5) { hits.push(z); if (proj < closestHit) closestHit = proj; }
   }
   for (const z of hits) damageEnemy(z, w.dmg * p.damageMult);
-  game.particles.push({
-    type: 'laser', x1: p.x, y1: p.y,
-    x2: p.x + nx * Math.min(closestHit + 50, bl),
-    y2: p.y + ny * Math.min(closestHit + 50, bl),
-    life: 0.15, maxLife: 0.15, color: w.color
-  });
+  if (game.particles.length < MAX_PARTICLES) {
+    game.particles.push({
+      type: 'laser', x1: p.x, y1: p.y,
+      x2: p.x + nx * Math.min(closestHit + 50, bl),
+      y2: p.y + ny * Math.min(closestHit + 50, bl),
+      life: 0.15, maxLife: 0.15, color: w.color
+    });
+  }
 }
 
 function throwGrenade() {
@@ -641,15 +651,16 @@ function killEnemy(z) {
     game.kills++;
     game.crystals += 0.1;
   }
-  // Дроп
-  const roll = Math.random();
-  if (roll < 0.08) game.pickups.push({ x: z.x, y: z.y, type: 'health', r: 12, life: 20 });
-  else if (roll < 0.16) game.pickups.push({ x: z.x, y: z.y, type: 'grenade', r: 12, life: 20 });
-  else if (roll < 0.28) game.pickups.push({ x: z.x, y: z.y, type: 'ammo', r: 12, life: 25 });
-  
+  // Дроп с лимитом пикапов
+  if (game.pickups.length < MAX_PICKUPS) {
+    const roll = Math.random();
+    if (roll < 0.08) game.pickups.push({ x: z.x, y: z.y, type: 'health', r: 12, life: 20 });
+    else if (roll < 0.16) game.pickups.push({ x: z.x, y: z.y, type: 'grenade', r: 12, life: 20 });
+    else if (roll < 0.28) game.pickups.push({ x: z.x, y: z.y, type: 'ammo', r: 12, life: 25 });
+  }
   const idx = game.zombies.indexOf(z);
   if (idx >= 0) game.zombies.splice(idx, 1);
-  spawnBlood(z.x, z.y, z.type === 'tank' || z.type === 'armored' ? 20 : 10);
+  spawnBlood(z.x, z.y, z.type === 'tank' || z.type === 'armored' ? 12 : 6);
   beep(120, 0.08, 'sawtooth', 0.03);
 }
 
@@ -662,7 +673,9 @@ function explodeAt(x, y, radius, dmg) {
   if (game.boss && Math.hypot(game.boss.x - x, game.boss.y - y) < radius + game.boss.r) {
     game.boss.hp -= dmg; game.boss.hitFlash = 0.2;
   }
-  for (let i = 0; i < 25; i++) {
+  // Частицы с лимитом
+  const partCount = Math.min(15, MAX_PARTICLES - game.particles.length);
+  for (let i = 0; i < partCount; i++) {
     const a = Math.random() * Math.PI * 2;
     const s = rnd(50, 250);
     game.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5, maxLife: 0.5, size: rnd(2, 6), color: `hsl(${30 + Math.random()*20}, 90%, 55%)` });
@@ -671,7 +684,8 @@ function explodeAt(x, y, radius, dmg) {
 }
 
 function spawnBlood(x, y, count) {
-  for (let i = 0; i < count; i++) {
+  const actual = Math.min(count, MAX_PARTICLES - game.particles.length);
+  for (let i = 0; i < actual; i++) {
     const a = Math.random() * Math.PI * 2;
     const s = rnd(40, 150);
     game.particles.push({
@@ -691,7 +705,6 @@ function update(dt) {
   if (p.hurtFlash > 0) p.hurtFlash -= dt;
   if (p.fireCooldown > 0) p.fireCooldown -= dt;
   
-  // Перезарядка
   if (game.reloading) {
     game.reloadTimer -= dt;
     if (game.reloadTimer <= 0) finishReload();
@@ -778,15 +791,21 @@ function update(dt) {
     }
   }
 
-  for (const z of game.zombies) {
+  for (let i = game.zombies.length - 1; i >= 0; i--) {
+    const z = game.zombies[i];
+    // Удалить очень далёких (для предотвращения утечки)
+    if (Math.hypot(z.x - p.x, z.y - p.y) > MAX_ZOMBIE_DIST) {
+      game.zombies.splice(i, 1);
+      continue;
+    }
     if (z.hitFlash > 0) z.hitFlash -= dt;
     z.slowMult = 1;
-    for (let i = game.barricades.length - 1; i >= 0; i--) {
-      const bar = game.barricades[i];
+    for (let k = game.barricades.length - 1; k >= 0; k--) {
+      const bar = game.barricades[k];
       if (Math.hypot(bar.x - z.x, bar.y - z.y) < bar.r + z.r) {
         z.slowMult = 0.15;
         bar.hp -= z.dmg * dt * 2;
-        if (bar.hp <= 0) { game.barricades.splice(i, 1); beep(200, 0.2, 'sawtooth', 0.05); game.shake = Math.max(game.shake, 3); }
+        if (bar.hp <= 0) { game.barricades.splice(k, 1); beep(200, 0.2, 'sawtooth', 0.05); game.shake = Math.max(game.shake, 3); }
         break;
       }
     }
@@ -812,6 +831,7 @@ function update(dt) {
     }
   }
 
+  // Расталкивание зомби
   for (let i = 0; i < game.zombies.length; i++) {
     for (let j = i + 1; j < game.zombies.length; j++) {
       const a = game.zombies[i], b = game.zombies[j];
@@ -838,18 +858,13 @@ function update(dt) {
       if (pk.type === 'health') { p.hp = Math.min(p.maxHp, p.hp + 30); beep(800, 0.1, 'sine', 0.06); }
       else if (pk.type === 'grenade') { p.grenades++; beep(600, 0.1, 'square', 0.06); }
       else if (pk.type === 'ammo') {
-        // Восполняем текущее оружие, если не пистолет. Иначе — следующее доступное
         const cw = game.currentWeapon;
         if (cw !== 'pistol' && game.weaponAmmo[cw] !== -1) {
           game.weaponAmmo[cw] += 30;
         } else {
-          // Даём любому не-пистолетному оружию в запасе
           const availables = Object.keys(WEAPONS).filter(w => w !== 'pistol' && game.weaponAmmo[w] > 0);
-          if (availables.length > 0) {
-            game.weaponAmmo[availables[0]] += 30;
-          } else {
-            game.coins += 10;
-          }
+          if (availables.length > 0) game.weaponAmmo[availables[0]] += 30;
+          else game.coins += 10;
         }
         beep(700, 0.12, 'square', 0.05);
       }
@@ -914,7 +929,9 @@ function updateBoss(dt) {
     }
   } else if (b.state === 'charge') {
     if (b.stateTimer <= 0.8) {
-      b.x += Math.cos(b.angle) * b.speed * 5 * dt; b.y += Math.sin(b.angle) * b.speed * 5 * dt;
+      // Рывок ×6 (было ×5)
+      b.x += Math.cos(b.angle) * b.speed * 6 * dt;
+      b.y += Math.sin(b.angle) * b.speed * 6 * dt;
       if (dist < b.r + p.r && p.invuln <= 0) {
         p.hp -= b.dmg * 1.5; p.invuln = 1; p.hurtFlash = 0.8; game.shake = 20;
         b.state = 'chase'; b.stateTimer = 3;
@@ -927,7 +944,8 @@ function updateBoss(dt) {
 function killBoss() {
   const b = game.boss;
   game.coins += 100; game.crystals += 10; game.kills++;
-  for (let i = 0; i < 60; i++) {
+  const partCount = Math.min(40, MAX_PARTICLES - game.particles.length);
+  for (let i = 0; i < partCount; i++) {
     const a = Math.random() * Math.PI * 2; const s = rnd(100, 400);
     game.particles.push({ x: b.x, y: b.y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: rnd(0.5,1.2), maxLife: 1.2, size: rnd(3,8), color: `hsl(${Math.random()*20}, 90%, ${30+Math.random()*30}%)` });
   }
@@ -1016,7 +1034,6 @@ function buyShopItem(idx) {
   game.shopUpgrades.splice(idx, 1);
   renderShop();
   updateHUD();
-  saveGame();
 }
 
 function onDeath() {
@@ -1162,11 +1179,9 @@ function openMenu() {
     <div class="hint">
       <p>🕹️ Води пальцем — движение</p>
       <p>🎯 Стрельба автоматическая</p>
-      <p>👀 Тело — куда идёшь, пушка — на врага</p>
       <p>🔄 Перезарядка — авто или кнопка</p>
       <p>📦 Патроны падают с зомби</p>
-      <p>💣 Граната — кнопка 💣</p>
-      <p>🧱 Баррикада замедляет зомби</p>
+      <p>💣 Граната · 🧱 Баррикада</p>
       <p>💾 Автосохранение</p>
     </div>
   `;
@@ -1212,7 +1227,7 @@ function openMapSelect() {
   MAPS.forEach(m => {
     const el = document.createElement('div');
     el.className = 'card-select' + (m.id === game.selectedMap ? ' selected' : '');
-    el.innerHTML = `<div class="name">${m.name}</div><div class="desc">Препятствий: ${m.obstacleCount} · Декор: ${m.floor}</div>`;
+    el.innerHTML = `<div class="name">${m.name}</div><div class="desc">Препятствий: ${m.obstacleCount}</div>`;
     el.addEventListener('click', () => { game.selectedMap = m.id; openMapSelect(); });
     grid.appendChild(el);
   });
@@ -1225,9 +1240,15 @@ function openMapSelect() {
 
 function pseudo(n) { const x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); }
 
+// УЛУЧШЕННЫЙ ФОН С ГРАДИЕНТОМ
 function drawFloor(cam) {
   const cfg = game.mapConfig || MAPS[0];
-  ctx.fillStyle = cfg.bg;
+  
+  // Базовый градиент
+  const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H));
+  grad.addColorStop(0, cfg.bg);
+  grad.addColorStop(1, game.isNight ? '#000000' : shadeColor(cfg.bg, -20));
+  ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
   ctx.save();
@@ -1243,24 +1264,30 @@ function drawFloor(cam) {
     const endY = cam.y + H/2/cam.zoom + 100;
     for (let x = startX; x < endX; x += gs) {
       for (let y = startY; y < endY; y += gs) {
-        const shade = ((Math.floor(x/gs) + Math.floor(y/gs)) % 2 === 0) ? 0.03 : 0.06;
-        ctx.fillStyle = `rgba(100,150,210,${shade})`;
+        const isOdd = ((Math.floor(x/gs) + Math.floor(y/gs)) % 2 === 0);
+        ctx.fillStyle = isOdd ? 'rgba(30,45,70,0.5)' : 'rgba(20,30,50,0.5)';
         ctx.fillRect(x + 1, y + 1, gs - 2, gs - 2);
+        // Блик на плитке
+        if (isOdd) {
+          ctx.fillStyle = 'rgba(100,150,200,0.05)';
+          ctx.fillRect(x + 4, y + 4, gs - 8, 3);
+        }
       }
     }
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = startX; x < endX; x += gs) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
     for (let y = startY; y < endY; y += gs) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
     ctx.stroke();
   } else if (cfg.floor === 'grass') {
-    for (let i = 0; i < 250; i++) {
+    for (let i = 0; i < 300; i++) {
       const px = (pseudo(i*7) * W * 2) - W * 0.5 + cam.x - W/2;
       const py = (pseudo(i*13) * H * 2) - H * 0.5 + cam.y - H/2;
       if (px < cam.x - W/cam.zoom/2 - 50 || px > cam.x + W/cam.zoom/2 + 50) continue;
       if (py < cam.y - H/cam.zoom/2 - 50 || py > cam.y + H/cam.zoom/2 + 50) continue;
-      ctx.strokeStyle = `rgba(${34 + pseudo(i)*30}, ${139 + pseudo(i*3)*40}, ${34 + pseudo(i*5)*30}, 0.4)`;
+      const hue = 130 + pseudo(i*3) * 40;
+      ctx.strokeStyle = `hsla(${hue}, 60%, ${25 + pseudo(i*5)*15}%, 0.5)`;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(px, py);
@@ -1277,17 +1304,29 @@ function drawFloor(cam) {
       for (let y = startY; y < endY; y += gs) {
         ctx.fillStyle = 'rgba(100,116,139,0.08)';
         ctx.fillRect(x, y + gs/2 - 2, gs, 4);
+        ctx.fillStyle = 'rgba(168,85,247,0.05)';
+        ctx.fillRect(x + 4, y + 4, gs - 8, gs - 8);
       }
     }
-    ctx.strokeStyle = 'rgba(100,116,139,0.12)';
+    ctx.strokeStyle = 'rgba(100,116,139,0.15)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = startX; x < endX; x += gs) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
+    for (let y = startY; y < endY; y += gs) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
     ctx.stroke();
   }
 
   for (const d of game.decor) drawDecor(d);
   ctx.restore();
+}
+
+function shadeColor(hex, percent) {
+  const num = parseInt(hex.replace('#',''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.max(0, Math.min(255, (num >> 16) + amt));
+  const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amt));
+  const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+  return '#' + (0x1000000 + R*0x10000 + G*0x100 + B).toString(16).slice(1);
 }
 
 function drawDecor(d) {
@@ -1305,22 +1344,25 @@ function drawDecor(d) {
     }
     ctx.stroke();
   } else if (d.type === 'manhole') {
-    ctx.fillStyle = 'rgba(30,41,59,0.7)';
+    ctx.fillStyle = 'rgba(20,30,45,0.85)';
     ctx.beginPath(); ctx.arc(0, 0, d.size * 0.4, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(100,116,139,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.strokeStyle = 'rgba(71,85,105,0.6)'; ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2;
+    ctx.strokeStyle = 'rgba(100,116,139,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = 'rgba(71,85,105,0.7)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
       ctx.beginPath();
       ctx.moveTo(Math.cos(a) * 3, Math.sin(a) * 3);
       ctx.lineTo(Math.cos(a) * d.size * 0.35, Math.sin(a) * d.size * 0.35);
       ctx.stroke();
     }
   } else if (d.type === 'tile') {
-    ctx.fillStyle = 'rgba(56,189,248,0.04)';
+    ctx.fillStyle = 'rgba(56,189,248,0.05)';
     ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
+    ctx.strokeStyle = 'rgba(56,189,248,0.1)'; ctx.lineWidth = 1;
+    ctx.strokeRect(-d.size/2, -d.size/2, d.size, d.size);
   } else if (d.type === 'grass') {
-    ctx.strokeStyle = 'rgba(34,197,94,0.4)'; ctx.lineWidth = 1.5;
+    const hue = 120 + pseudo(d.seed) * 40;
+    ctx.strokeStyle = `hsla(${hue}, 60%, 50%, 0.5)`; ctx.lineWidth = 1.5;
     for (let i = 0; i < 4; i++) {
       const a = -Math.PI/2 + (Math.random() - 0.5) * 1.5;
       ctx.beginPath();
@@ -1329,26 +1371,30 @@ function drawDecor(d) {
       ctx.stroke();
     }
   } else if (d.type === 'stone') {
-    ctx.fillStyle = 'rgba(71,85,105,0.4)';
+    ctx.fillStyle = 'rgba(71,85,105,0.5)';
     ctx.beginPath(); ctx.ellipse(0, 0, d.size * 0.3, d.size * 0.2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(148,163,184,0.2)';
+    ctx.beginPath(); ctx.ellipse(-d.size*0.1, -d.size*0.05, d.size * 0.15, d.size * 0.1, 0, 0, Math.PI*2); ctx.fill();
   } else if (d.type === 'flower') {
-    ctx.fillStyle = `hsl(${pseudo(d.seed) * 360}, 70%, 60%)`;
+    ctx.fillStyle = `hsl(${pseudo(d.seed) * 360}, 80%, 65%)`;
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
-      ctx.beginPath(); ctx.arc(Math.cos(a) * 3, Math.sin(a) * 3, 2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 3, Math.sin(a) * 3, 2.5, 0, Math.PI*2); ctx.fill();
     }
     ctx.fillStyle = '#fbbf24';
     ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI*2); ctx.fill();
   } else if (d.type === 'line') {
-    ctx.fillStyle = 'rgba(251,191,36,0.1)';
+    ctx.fillStyle = 'rgba(251,191,36,0.15)';
     ctx.fillRect(-d.size/2, -3, d.size, 6);
+    ctx.fillStyle = 'rgba(251,191,36,0.3)';
+    ctx.fillRect(-d.size/2, -1, d.size, 2);
   } else if (d.type === 'sign') {
-    ctx.fillStyle = 'rgba(239,68,68,0.15)';
+    ctx.fillStyle = 'rgba(239,68,68,0.2)';
     ctx.fillRect(-d.size*0.3, -d.size*0.15, d.size*0.6, d.size*0.3);
-    ctx.strokeStyle = 'rgba(239,68,68,0.3)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(239,68,68,0.4)'; ctx.lineWidth = 1.5;
     ctx.strokeRect(-d.size*0.3, -d.size*0.15, d.size*0.6, d.size*0.3);
   } else if (d.type === 'wire') {
-    ctx.strokeStyle = 'rgba(15,23,42,0.6)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(15,23,42,0.7)'; ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(-d.size/2, 0);
     ctx.quadraticCurveTo(0, d.size*0.3, d.size/2, 0);
@@ -1357,16 +1403,25 @@ function drawDecor(d) {
   ctx.restore();
 }
 
+// КРАСИВЫЕ ПРЕПЯТСТВИЯ С ГРАДИЕНТАМИ
 function drawObstacle(o) {
   ctx.save();
   ctx.translate(o.x, o.y);
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  
+  // Тень (мягкая)
+  const shadowGrad = ctx.createRadialGradient(4, 6, 2, 4, 6, o.size * 0.7);
+  shadowGrad.addColorStop(0, 'rgba(0,0,0,0.5)');
+  shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = shadowGrad;
   ctx.beginPath();
-  ctx.ellipse(4, 6, o.size * 0.5, o.size * 0.35, 0, 0, Math.PI*2);
+  ctx.ellipse(4, 6, o.size * 0.7, o.size * 0.5, 0, 0, Math.PI*2);
   ctx.fill();
 
   if (o.type === 'wall') {
-    ctx.fillStyle = '#475569';
+    const grad = ctx.createLinearGradient(-o.size/2, -o.size/2, o.size/2, o.size/2);
+    grad.addColorStop(0, '#64748b');
+    grad.addColorStop(1, '#334155');
+    ctx.fillStyle = grad;
     ctx.fillRect(-o.size/2, -o.size/2, o.size, o.size);
     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
     ctx.strokeRect(-o.size/2, -o.size/2, o.size, o.size);
@@ -1375,17 +1430,28 @@ function drawObstacle(o) {
     for (let i = 0; i < 4; i++) {
       for (let j = 0; j < 3; j++) {
         const offX = (i % 2 === 0) ? 0 : bw / 2;
-        ctx.fillStyle = `rgba(${71 + (i+j)*10}, ${85 + (i+j)*10}, ${105 + (i+j)*10}, 0.8)`;
+        const shade = 80 + (i+j)*15;
+        ctx.fillStyle = `rgb(${shade}, ${shade+20}, ${shade+40})`;
         ctx.fillRect(-o.size/2 + j*bw + offX + 2, -o.size/2 + i*bh + 2, bw - 4, bh - 4);
       }
     }
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(-o.size/2, -o.size/2, o.size, 4);
   } else if (o.type === 'car') {
-    ctx.fillStyle = '#1e40af';
+    const bodyGrad = ctx.createLinearGradient(0, -o.size*0.3, 0, o.size*0.3);
+    bodyGrad.addColorStop(0, '#3b82f6');
+    bodyGrad.addColorStop(0.5, '#1e40af');
+    bodyGrad.addColorStop(1, '#1e3a8a');
+    ctx.fillStyle = bodyGrad;
     ctx.fillRect(-o.size*0.4, -o.size*0.3, o.size*0.8, o.size*0.6);
-    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.strokeRect(-o.size*0.4, -o.size*0.3, o.size*0.8, o.size*0.6);
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+    ctx.strokeRect(-o.size*0.4, -o.size*0.3, o.size*0.8, o.size*0.6);
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(-o.size*0.2, -o.size*0.18, o.size*0.4, o.size*0.36);
-    ctx.fillStyle = 'rgba(56,189,248,0.5)';
+    const glassGrad = ctx.createLinearGradient(0, -o.size*0.16, 0, o.size*0.16);
+    glassGrad.addColorStop(0, 'rgba(56,189,248,0.7)');
+    glassGrad.addColorStop(1, 'rgba(14,116,144,0.5)');
+    ctx.fillStyle = glassGrad;
     ctx.fillRect(-o.size*0.18, -o.size*0.16, o.size*0.16, o.size*0.32);
     ctx.fillRect(o.size*0.02, -o.size*0.16, o.size*0.16, o.size*0.32);
     ctx.fillStyle = '#0a0e14';
@@ -1393,8 +1459,13 @@ function drawObstacle(o) {
     ctx.beginPath(); ctx.arc(o.size*0.3, -o.size*0.35, o.size*0.1, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(-o.size*0.3, o.size*0.35, o.size*0.1, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(o.size*0.3, o.size*0.35, o.size*0.1, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(-o.size*0.4, -o.size*0.28, o.size*0.8, 3);
   } else if (o.type === 'crate') {
-    ctx.fillStyle = '#a16207';
+    const grad = ctx.createLinearGradient(-o.size/2, -o.size/2, o.size/2, o.size/2);
+    grad.addColorStop(0, '#ca8a04');
+    grad.addColorStop(1, '#854d0e');
+    ctx.fillStyle = grad;
     ctx.fillRect(-o.size/2, -o.size/2, o.size, o.size);
     ctx.strokeStyle = '#451a03'; ctx.lineWidth = 3;
     ctx.strokeRect(-o.size/2, -o.size/2, o.size, o.size);
@@ -1412,17 +1483,21 @@ function drawObstacle(o) {
   } else if (o.type === 'tree') {
     ctx.fillStyle = '#78350f';
     ctx.fillRect(-6, 0, 12, o.size * 0.4);
-    const grad = ctx.createRadialGradient(0, -o.size*0.2, 5, 0, -o.size*0.2, o.size*0.55);
-    grad.addColorStop(0, '#16a34a');
+    const grad = ctx.createRadialGradient(-o.size*0.15, -o.size*0.3, 5, 0, -o.size*0.2, o.size*0.6);
+    grad.addColorStop(0, '#4ade80');
+    grad.addColorStop(0.5, '#16a34a');
     grad.addColorStop(1, '#14532d');
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(0, -o.size*0.2, o.size*0.5, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.arc(-o.size*0.2, -o.size*0.3, o.size*0.2, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(o.size*0.15, -o.size*0.1, o.size*0.15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath(); ctx.arc(-o.size*0.15, -o.size*0.4, o.size*0.08, 0, Math.PI*2); ctx.fill();
   } else if (o.type === 'rock') {
-    const grad = ctx.createRadialGradient(-o.size*0.2, -o.size*0.2, 3, 0, 0, o.size*0.5);
-    grad.addColorStop(0, '#64748b');
+    const grad = ctx.createRadialGradient(-o.size*0.2, -o.size*0.2, 3, 0, 0, o.size*0.6);
+    grad.addColorStop(0, '#94a3b8');
+    grad.addColorStop(0.6, '#64748b');
     grad.addColorStop(1, '#334155');
     ctx.fillStyle = grad;
     ctx.beginPath();
@@ -1433,21 +1508,31 @@ function drawObstacle(o) {
     ctx.lineTo(0, o.size*0.5);
     ctx.closePath(); ctx.fill();
     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath(); ctx.arc(-o.size*0.15, -o.size*0.25, o.size*0.1, 0, Math.PI*2); ctx.fill();
   } else if (o.type === 'bush') {
     ctx.fillStyle = '#15803d';
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2 + 0.3;
-      ctx.beginPath(); ctx.arc(Math.cos(a) * o.size*0.2, Math.sin(a) * o.size*0.2, o.size*0.3, 0, Math.PI*2); ctx.fill();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * o.size*0.22, Math.sin(a) * o.size*0.22, o.size*0.3, 0, Math.PI*2); ctx.fill();
     }
-    ctx.fillStyle = 'rgba(22,163,74,0.7)';
+    const grad = ctx.createRadialGradient(-o.size*0.1, -o.size*0.1, 2, 0, 0, o.size*0.4);
+    grad.addColorStop(0, '#22c55e');
+    grad.addColorStop(1, 'rgba(22,163,74,0)');
+    ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(0, 0, o.size*0.4, 0, Math.PI*2); ctx.fill();
   } else if (o.type === 'barrel') {
-    ctx.fillStyle = '#a16207';
+    const grad = ctx.createRadialGradient(-o.size*0.1, -o.size*0.15, 2, 0, 0, o.size*0.5);
+    grad.addColorStop(0, '#ca8a04');
+    grad.addColorStop(1, '#713f12');
+    ctx.fillStyle = grad;
     ctx.beginPath(); ctx.ellipse(0, 0, o.size*0.4, o.size*0.5, 0, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = '#451a03'; ctx.lineWidth = 3; ctx.stroke();
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-o.size*0.4, -o.size*0.15); ctx.lineTo(o.size*0.4, -o.size*0.15); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-o.size*0.4, o.size*0.15); ctx.lineTo(o.size*0.4, o.size*0.15); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath(); ctx.ellipse(-o.size*0.1, -o.size*0.2, o.size*0.08, o.size*0.05, 0, 0, Math.PI*2); ctx.fill();
   }
   ctx.restore();
 }
@@ -1457,18 +1542,21 @@ function drawBarricade(b) {
   ctx.translate(b.x, b.y);
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath(); ctx.ellipse(3, 5, b.r, b.r*0.5, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#78350f';
+  const grad = ctx.createLinearGradient(-b.r, -b.r, b.r, b.r);
+  grad.addColorStop(0, '#a16207');
+  grad.addColorStop(1, '#451a03');
+  ctx.fillStyle = grad;
   ctx.fillRect(-b.r, -b.r, b.r*2, b.r*2);
   ctx.strokeStyle = '#451a03'; ctx.lineWidth = 3;
   ctx.strokeRect(-b.r, -b.r, b.r*2, b.r*2);
-  ctx.strokeStyle = 'rgba(69,26,3,0.7)'; ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2;
   for (let i = 1; i < 4; i++) {
     ctx.beginPath();
     ctx.moveTo(-b.r, -b.r + (b.r*2/4) * i);
     ctx.lineTo(b.r, -b.r + (b.r*2/4) * i);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(120,53,15,0.9)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
   ctx.beginPath(); ctx.moveTo(-b.r, -b.r); ctx.lineTo(b.r, b.r); ctx.stroke();
   if (b.hp < b.maxHp) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1480,15 +1568,15 @@ function drawBarricade(b) {
 }
 
 function drawMinimap() {
-  miniCtx.clearRect(0, 0, 180, 180);
+  miniCtx.clearRect(0, 0, 184, 184);
   miniCtx.fillStyle = 'rgba(2,6,23,0.9)';
-  miniCtx.fillRect(0, 0, 180, 180);
-  const scale = 180 / 3000;
+  miniCtx.fillRect(0, 0, 184, 184);
+  const scale = 184 / 3000;
   const toMapX = (x) => (x + 1500) * scale;
   const toMapY = (y) => (y + 1500) * scale;
   miniCtx.strokeStyle = 'rgba(56,189,248,0.5)';
-  miniCtx.lineWidth = 1;
-  miniCtx.strokeRect(0, 0, 180, 180);
+  miniCtx.lineWidth = 2;
+  miniCtx.strokeRect(1, 1, 182, 182);
   miniCtx.fillStyle = 'rgba(100,116,139,0.5)';
   for (const o of game.obstacles) {
     miniCtx.fillRect(toMapX(o.x - o.size/2), toMapY(o.y - o.size/2), o.size*scale, o.size*scale);
@@ -1497,7 +1585,7 @@ function drawMinimap() {
     if (pk.type === 'health') miniCtx.fillStyle = '#22c55e';
     else if (pk.type === 'grenade') miniCtx.fillStyle = '#84cc16';
     else miniCtx.fillStyle = '#fbbf24';
-    miniCtx.fillRect(toMapX(pk.x)-1, toMapY(pk.y)-1, 2, 2);
+    miniCtx.fillRect(toMapX(pk.x)-1.5, toMapY(pk.y)-1.5, 3, 3);
   }
   for (const bar of game.barricades) {
     miniCtx.fillStyle = '#a16207';
@@ -1509,44 +1597,60 @@ function drawMinimap() {
       if (d > z.invisibilityRange) continue;
     }
     miniCtx.fillStyle = z.slowMult < 1 ? '#fbbf24' : '#ef4444';
-    miniCtx.fillRect(toMapX(z.x)-1, toMapY(z.y)-1, 2, 2);
+    miniCtx.fillRect(toMapX(z.x)-1.5, toMapY(z.y)-1.5, 3, 3);
   }
   if (game.boss) {
     miniCtx.fillStyle = '#fbbf24';
     miniCtx.beginPath();
-    miniCtx.arc(toMapX(game.boss.x), toMapY(game.boss.y), 4, 0, Math.PI*2);
+    miniCtx.arc(toMapX(game.boss.x), toMapY(game.boss.y), 5, 0, Math.PI*2);
     miniCtx.fill();
   }
   if (game.player) {
     miniCtx.fillStyle = '#38bdf8';
     miniCtx.beginPath();
-    miniCtx.arc(toMapX(game.player.x), toMapY(game.player.y), 3, 0, Math.PI*2);
+    miniCtx.arc(toMapX(game.player.x), toMapY(game.player.y), 4, 0, Math.PI*2);
     miniCtx.fill();
     miniCtx.strokeStyle = '#fff';
-    miniCtx.lineWidth = 1;
+    miniCtx.lineWidth = 1.5;
     miniCtx.stroke();
   }
 }
 
+// КРАСИВЫЕ ПИКАПЫ
 function drawPickup(pk) {
   const pulse = 1 + Math.sin(game.time * 6) * 0.15;
+  const r = pk.r * pulse;
+  
+  // Свечение
+  const glowGrad = ctx.createRadialGradient(pk.x, pk.y, r, pk.x, pk.y, r*2.5);
+  let glowColor;
+  if (pk.type === 'health') glowColor = 'rgba(34,197,94,0.3)';
+  else if (pk.type === 'grenade') glowColor = 'rgba(132,204,22,0.3)';
+  else glowColor = 'rgba(251,191,36,0.3)';
+  glowGrad.addColorStop(0, glowColor);
+  glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glowGrad;
+  ctx.beginPath(); ctx.arc(pk.x, pk.y, r*2.5, 0, Math.PI*2); ctx.fill();
+  
   if (pk.type === 'health') {
     ctx.fillStyle = '#22c55e';
-    ctx.beginPath(); ctx.arc(pk.x, pk.y, pk.r * pulse, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(pk.x, pk.y, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#86efac'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#fff';
     ctx.fillRect(pk.x - 2, pk.y - 6, 4, 12);
     ctx.fillRect(pk.x - 6, pk.y - 2, 12, 4);
   } else if (pk.type === 'grenade') {
     ctx.fillStyle = '#84cc16';
-    ctx.beginPath(); ctx.arc(pk.x, pk.y, pk.r * pulse, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(pk.x, pk.y, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#bef264'; ctx.lineWidth = 2; ctx.stroke();
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('💣', pk.x, pk.y);
   } else if (pk.type === 'ammo') {
     ctx.fillStyle = '#fbbf24';
-    ctx.beginPath(); ctx.arc(pk.x, pk.y, pk.r * pulse, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(pk.x, pk.y, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#78350f';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('📦', pk.x, pk.y);
@@ -1573,8 +1677,10 @@ function draw() {
       const alpha = pt.life / pt.maxLife;
       ctx.strokeStyle = pt.color;
       ctx.globalAlpha = alpha;
-      ctx.lineWidth = 4;
+      ctx.shadowBlur = 15; ctx.shadowColor = pt.color;
+      ctx.lineWidth = 5;
       ctx.beginPath(); ctx.moveTo(pt.x1, pt.y1); ctx.lineTo(pt.x2, pt.y2); ctx.stroke();
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
       continue;
     }
@@ -1591,11 +1697,22 @@ function draw() {
       if (d > z.invisibilityRange) alpha = 0.15;
     }
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath(); ctx.ellipse(z.x, z.y + z.r * 0.7, z.r * 0.9, z.r * 0.4, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = z.hitFlash > 0 ? '#fff' : z.color;
+    
+    // Градиент на зомби
+    const zGrad = ctx.createRadialGradient(z.x - z.r*0.3, z.y - z.r*0.3, 2, z.x, z.y, z.r);
+    if (z.hitFlash > 0) {
+      zGrad.addColorStop(0, '#fff');
+      zGrad.addColorStop(1, '#ddd');
+    } else {
+      zGrad.addColorStop(0, shadeColor(z.color, 30));
+      zGrad.addColorStop(1, z.color);
+    }
+    ctx.fillStyle = zGrad;
     ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+    
     if (z.slowMult < 1) {
       ctx.strokeStyle = 'rgba(56,189,248,0.8)';
       ctx.lineWidth = 2;
@@ -1606,6 +1723,9 @@ function draw() {
     ctx.fillStyle = '#1a0a0a';
     ctx.beginPath(); ctx.arc(z.r * 0.35, -z.r * 0.35, z.r * 0.18, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(z.r * 0.35, z.r * 0.35, z.r * 0.18, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(z.r * 0.4, -z.r * 0.35, z.r * 0.08, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(z.r * 0.4, z.r * 0.35, z.r * 0.08, 0, Math.PI*2); ctx.fill();
     if (z.armor) {
       ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(0, 0, z.r * 0.85, 0, Math.PI*2); ctx.stroke();
@@ -1618,7 +1738,7 @@ function draw() {
     ctx.restore();
     if (z.hp < z.maxHp) {
       const w = z.r * 2;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(z.x - w/2, z.y - z.r - 8, w, 4);
       ctx.fillStyle = '#ef4444';
       ctx.fillRect(z.x - w/2, z.y - z.r - 8, w * (z.hp / z.maxHp), 4);
@@ -1634,16 +1754,27 @@ function draw() {
     }
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.beginPath(); ctx.ellipse(b.x, b.y + b.r * 0.7, b.r * 0.9, b.r * 0.4, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = b.hitFlash > 0 ? '#fff' : b.color;
+    
+    const bossGrad = ctx.createRadialGradient(b.x - b.r*0.3, b.y - b.r*0.3, 5, b.x, b.y, b.r);
+    if (b.hitFlash > 0) {
+      bossGrad.addColorStop(0, '#fff');
+      bossGrad.addColorStop(1, '#ddd');
+    } else {
+      bossGrad.addColorStop(0, '#dc2626');
+      bossGrad.addColorStop(0.5, b.color);
+      bossGrad.addColorStop(1, '#450a0a');
+    }
+    ctx.fillStyle = bossGrad;
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 4; ctx.stroke();
+    
     if (b.slowMult < 1) {
       ctx.strokeStyle = 'rgba(56,189,248,0.8)'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 6, 0, Math.PI*2); ctx.stroke();
     }
     ctx.save();
     ctx.translate(b.x, b.y); ctx.rotate(b.angle);
-    ctx.fillStyle = '#fbbf24'; ctx.shadowBlur = 20; ctx.shadowColor = '#fbbf24';
+    ctx.fillStyle = '#fbbf24'; ctx.shadowBlur = 25; ctx.shadowColor = '#fbbf24';
     ctx.beginPath(); ctx.arc(b.r * 0.4, -b.r * 0.3, b.r * 0.15, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(b.r * 0.4, b.r * 0.3, b.r * 0.15, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
@@ -1652,27 +1783,29 @@ function draw() {
 
   for (const b of game.bullets) {
     ctx.fillStyle = b.color;
-    ctx.shadowBlur = 8; ctx.shadowColor = b.color;
+    ctx.shadowBlur = 12; ctx.shadowColor = b.color;
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
   }
   for (const b of game.enemyBullets) {
     ctx.fillStyle = b.color || '#84cc16';
-    ctx.shadowBlur = 6; ctx.shadowColor = b.color || '#84cc16';
+    ctx.shadowBlur = 8; ctx.shadowColor = b.color || '#84cc16';
     ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
   }
 
   const p = game.player;
   if (p) {
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r * 0.7, p.r * 0.9, p.r * 0.4, 0, 0, Math.PI*2); ctx.fill();
     
-    // Тело по bodyAngle
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.bodyAngle);
-    ctx.fillStyle = p.color;
+    const pGrad = ctx.createRadialGradient(-p.r*0.3, -p.r*0.3, 2, 0, 0, p.r);
+    pGrad.addColorStop(0, shadeColor(p.color, 40));
+    pGrad.addColorStop(1, p.color);
+    ctx.fillStyle = pGrad;
     ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = '#bfdbfe'; ctx.lineWidth = 2.5; ctx.stroke();
     ctx.fillStyle = '#fff';
@@ -1683,7 +1816,6 @@ function draw() {
     ctx.closePath(); ctx.fill();
     ctx.restore();
 
-    // Оружие по p.angle
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
@@ -1702,18 +1834,25 @@ function draw() {
   if (game.isNight && p) {
     const lightGrad = ctx.createRadialGradient(p.x, p.y, 80, p.x, p.y, 400);
     lightGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    lightGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
+    lightGrad.addColorStop(1, 'rgba(0,0,0,0.88)');
     ctx.fillStyle = lightGrad;
     ctx.beginPath(); ctx.arc(p.x, p.y, 500, 0, Math.PI*2); ctx.fill();
   }
   ctx.restore();
+
+  // Виньетка
+  const vigGrad = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.3, W/2, H/2, Math.max(W,H)*0.7);
+  vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  vigGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
+  ctx.fillStyle = vigGrad;
+  ctx.fillRect(0, 0, W, H);
 
   if (joystick.active) {
     ctx.save();
     ctx.globalAlpha = 0.2;
     ctx.beginPath(); ctx.arc(joystick.bx, joystick.by, JOY_MAX, 0, Math.PI*2);
     ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.7;
     ctx.beginPath(); ctx.arc(joystick.bx + joystick.dx*JOY_MAX, joystick.by + joystick.dy*JOY_MAX, 22, 0, Math.PI*2);
     ctx.fillStyle = '#38bdf8'; ctx.fill();
     ctx.restore();
@@ -1725,9 +1864,13 @@ function draw() {
     const pct = game.boss.hp / game.boss.maxHp;
     const barW = W * 0.7, barH = 14;
     const barX = (W - barW) / 2, barY = 80;
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
     ctx.fillRect(barX, barY, barW, barH);
-    ctx.fillStyle = '#ef4444';
+    const bossBarGrad = ctx.createLinearGradient(barX, 0, barX+barW, 0);
+    bossBarGrad.addColorStop(0, '#7f1d1d');
+    bossBarGrad.addColorStop(0.5, '#ef4444');
+    bossBarGrad.addColorStop(1, '#f87171');
+    ctx.fillStyle = bossBarGrad;
     ctx.fillRect(barX, barY, barW * pct, barH);
     ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
     ctx.strokeRect(barX, barY, barW, barH);
