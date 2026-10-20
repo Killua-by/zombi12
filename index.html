@@ -1878,7 +1878,7 @@ function draw() {
       ctx.globalAlpha = Math.min(1, z.hitFlash * 6);
       ctx.fillStyle = '#fff';
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI*2); ctx.fill();
-      ctxglobalAlpha = alpha;
+      ctx.globalAlpha = alpha;
     }
     if (z.slowMult < 1) {
       ctx.strokeStyle = 'rgba(56,189,248,0.8)'; ctx.lineWidth = 2;
