@@ -93,7 +93,7 @@
 <script>
 "use strict";
 
-// Мини-карта через JS
+// Мини-карта fix
 (function(){
   const fix = () => {
     const mc = document.getElementById('minimap');
@@ -107,593 +107,499 @@
   window.addEventListener('load', fix);
 })();
 
-// === ПИКСЕЛЬ-АРТ СПРАЙТЫ ===
-// Рисуем на маленьком canvas, потом увеличиваем в игре с imageSmoothingEnabled = false
+// === СПРАЙТЫ 64×64 ===
 const SPRITES = {};
+const NIGHT_MASK_SIZE = 1024;
+let NIGHT_MASK = null;
 
-function makeCanvas(w, h) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  return c;
-}
+function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function P(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
+function C(g, x, y, r, c) { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill(); }
+function E(g, x, y, rx, ry, c) { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI*2); g.fill(); }
+function TRI(g, x1, y1, x2, y2, x3, y3, c) { g.fillStyle = c; g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.lineTo(x3,y3); g.closePath(); g.fill(); }
 
-// Универсальная функция: рисует пиксель-арт по сетке
-function drawPixelCircle(g, cx, cy, r, color) {
-  for (let y = 0; y < cy*2+2; y++) {
-    for (let x = 0; x < cx*2+2; x++) {
-      const dx = x - cx + 0.5;
-      const dy = y - cy + 0.5;
-      if (dx*dx + dy*dy <= r*r) {
-        g.fillStyle = color;
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-  }
-}
-
-// === ЗОМБИ 16×16 ===
-function makeZombieSprite16(bodyColor, darkColor, eyeColor, mouthColor, hasArmor, hasSpikes) {
-  const S = 16;
+function makePlayerSprite64() {
+  const S = 64;
   const c = makeCanvas(S, S);
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
-  
-  const cx = 7, cy = 8;
-  
-  // Тело (круг)
-  for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-      const dx = x - cx - 0.5;
-      const dy = y - cy - 0.5;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 5.5) {
-        g.fillStyle = bodyColor;
-        g.fillRect(x, y, 1, 1);
-      } else if (d < 6.3) {
-        g.fillStyle = darkColor;
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-  }
-  
-  // Пиксельные "шрамы" — 2-3 пятна
-  g.fillStyle = darkColor;
-  g.fillRect(3, 5, 2, 1);
-  g.fillRect(11, 11, 1, 2);
-  g.fillRect(9, 3, 2, 1);
-  
-  // Глаза (2x2 тёмные)
-  g.fillStyle = '#000';
-  g.fillRect(4, 6, 2, 2);
-  g.fillRect(10, 6, 2, 2);
-  
-  // Зрачки
-  g.fillStyle = eyeColor;
-  g.fillRect(5, 7, 1, 1);
-  g.fillRect(11, 7, 1, 1);
-  
-  // Рот
-  g.fillStyle = mouthColor;
-  g.fillRect(5, 10, 6, 1);
-  g.fillRect(6, 11, 4, 1);
-  
-  // Зубы
-  g.fillStyle = '#fff';
-  g.fillRect(6, 10, 1, 1);
-  g.fillRect(9, 10, 1, 1);
-  
-  // Броня (контур поверх)
-  if (hasArmor) {
-    g.strokeStyle = '#94a3b8';
-    g.lineWidth = 1;
-    for (let i = 0; i < S; i++) {
-      for (let j = 0; j < S; j++) {
-        const dx = i - cx - 0.5;
-        const dy = j - cy - 0.5;
-        const d = Math.sqrt(dx*dx + dy*dy);
-        if (d >= 5.3 && d < 6.3) {
-          if (Math.random() < 0.4) {
-            g.fillStyle = '#94a3b8';
-            g.fillRect(i, j, 1, 1);
-          }
-        }
-      }
-    }
-  }
-  
-  // Шипы (для explosive)
+  E(g, 32, 58, 18, 5, 'rgba(0,0,0,0.4)');
+  P(g, 23, 42, 7, 14, '#1e3a8a');
+  P(g, 34, 42, 7, 14, '#1e3a8a');
+  P(g, 22, 54, 9, 6, '#0f172a');
+  P(g, 33, 54, 9, 6, '#0f172a');
+  P(g, 22, 56, 9, 1, '#334155');
+  P(g, 33, 56, 9, 1, '#334155');
+  const bodyGrad = g.createLinearGradient(20, 22, 20, 44);
+  bodyGrad.addColorStop(0, '#60a5fa'); bodyGrad.addColorStop(0.5, '#3b82f6'); bodyGrad.addColorStop(1, '#1e40af');
+  g.fillStyle = bodyGrad; g.fillRect(19, 22, 26, 22);
+  P(g, 21, 24, 6, 3, 'rgba(147,197,253,0.6)');
+  P(g, 21, 28, 3, 2, 'rgba(147,197,253,0.4)');
+  P(g, 19, 38, 26, 4, '#111827');
+  P(g, 29, 38, 6, 4, '#fbbf24');
+  P(g, 30, 39, 4, 2, '#f59e0b');
+  P(g, 21, 40, 2, 3, '#fcd34d');
+  P(g, 24, 40, 2, 3, '#fcd34d');
+  P(g, 38, 40, 2, 3, '#fcd34d');
+  P(g, 41, 40, 2, 3, '#fcd34d');
+  P(g, 14, 22, 6, 9, '#334155');
+  P(g, 44, 22, 6, 9, '#334155');
+  P(g, 15, 23, 4, 2, '#64748b');
+  P(g, 45, 23, 4, 2, '#64748b');
+  P(g, 12, 30, 5, 13, '#93c5fd');
+  P(g, 47, 30, 5, 13, '#93c5fd');
+  P(g, 11, 42, 7, 6, '#fde68a');
+  P(g, 46, 42, 7, 6, '#fde68a');
+  C(g, 32, 18, 11, '#475569');
+  P(g, 21, 18, 22, 6, '#475569');
+  P(g, 22, 19, 20, 2, '#64748b');
+  P(g, 21, 22, 22, 1, '#1e293b');
+  const visGrad = g.createLinearGradient(22, 19, 42, 24);
+  visGrad.addColorStop(0, '#0ea5e9'); visGrad.addColorStop(1, '#0284c7');
+  g.fillStyle = visGrad; g.fillRect(23, 19, 18, 4);
+  P(g, 25, 20, 4, 1, 'rgba(255,255,255,0.7)');
+  P(g, 34, 20, 3, 1, 'rgba(255,255,255,0.5)');
+  P(g, 26, 23, 12, 3, '#fde68a');
+  P(g, 30, 24, 4, 1, '#92400e');
+  P(g, 50, 34, 12, 5, '#1f2937');
+  P(g, 50, 35, 12, 1, '#374151');
+  P(g, 60, 35, 4, 3, '#0f172a');
+  P(g, 60, 35, 4, 1, '#475569');
+  P(g, 53, 39, 5, 7, '#374151');
+  P(g, 54, 40, 3, 5, '#1f2937');
+  P(g, 54, 33, 2, 1, '#94a3b8');
+  return c;
+}
+
+function makeZombieSprite64(bodyColor, darkColor, lightColor, eyeColor, hasArmor, hasSpikes, hasBelt) {
+  const S = 64;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 32, 58, 16, 5, 'rgba(0,0,0,0.35)');
+  P(g, 24, 46, 6, 10, darkColor);
+  P(g, 34, 46, 6, 10, darkColor);
+  P(g, 23, 54, 8, 3, '#1a0a0a');
+  P(g, 33, 54, 8, 3, '#1a0a0a');
+  C(g, 32, 34, 16, bodyColor);
+  C(g, 32, 38, 11, lightColor);
+  E(g, 32, 44, 12, 4, darkColor);
+  P(g, 22, 30, 3, 1, '#7f1d1d');
+  P(g, 40, 34, 3, 1, '#7f1d1d');
+  P(g, 26, 40, 2, 2, '#450a0a');
+  P(g, 36, 42, 3, 1, '#450a0a');
+  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(20, 28); g.lineTo(24, 33); g.stroke();
+  g.beginPath(); g.moveTo(42, 32); g.lineTo(38, 36); g.stroke();
+  P(g, 13, 32, 5, 11, bodyColor);
+  P(g, 46, 32, 5, 11, bodyColor);
+  C(g, 15, 44, 3, darkColor);
+  C(g, 49, 44, 3, darkColor);
+  P(g, 13, 46, 1, 2, darkColor);
+  P(g, 15, 47, 1, 2, darkColor);
+  P(g, 17, 46, 1, 2, darkColor);
+  P(g, 47, 46, 1, 2, darkColor);
+  P(g, 49, 47, 1, 2, darkColor);
+  P(g, 51, 46, 1, 2, darkColor);
+  C(g, 32, 18, 10, bodyColor);
+  E(g, 32, 24, 8, 2, darkColor);
+  P(g, 25, 12, 3, 3, darkColor);
+  P(g, 36, 11, 4, 3, darkColor);
+  P(g, 29, 10, 3, 2, darkColor);
+  P(g, 27, 16, 3, 3, '#000');
+  P(g, 34, 16, 3, 3, '#000');
+  P(g, 28, 17, 2, 2, eyeColor);
+  P(g, 35, 17, 2, 2, eyeColor);
+  P(g, 26, 14, 4, 1, darkColor);
+  P(g, 34, 14, 4, 1, darkColor);
+  P(g, 27, 22, 10, 2, '#1a0505');
+  P(g, 28, 22, 1, 1, '#f8fafc');
+  P(g, 31, 22, 1, 1, '#f8fafc');
+  P(g, 34, 22, 1, 1, '#f8fafc');
+  P(g, 37, 22, 1, 1, '#f8fafc');
+  P(g, 29, 24, 1, 2, '#7f1d1d');
+  P(g, 35, 24, 1, 1, '#7f1d1d');
   if (hasSpikes) {
-    g.fillStyle = '#ea580c';
-    g.fillRect(2, 7, 1, 2);
-    g.fillRect(13, 7, 1, 2);
-    g.fillRect(7, 1, 2, 1);
-    g.fillRect(7, 14, 2, 1);
+    P(g, 18, 32, 3, 1, lightColor);
+    P(g, 18, 34, 3, 1, lightColor);
+    P(g, 43, 32, 3, 1, lightColor);
+    P(g, 43, 34, 3, 1, lightColor);
+    C(g, 16, 33, 2, lightColor);
+    C(g, 48, 33, 2, lightColor);
+    C(g, 32, 8, 2, lightColor);
   }
-  
+  if (hasArmor) {
+    g.strokeStyle = '#94a3b8'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(32, 34, 15, 0, Math.PI*2); g.stroke();
+    P(g, 20, 32, 4, 2, '#cbd5e1');
+    P(g, 20, 36, 4, 2, '#cbd5e1');
+    P(g, 40, 32, 4, 2, '#cbd5e1');
+    P(g, 40, 36, 4, 2, '#cbd5e1');
+    P(g, 21, 32, 1, 1, '#475569');
+    P(g, 41, 32, 1, 1, '#475569');
+  }
+  if (hasBelt) {
+    P(g, 22, 42, 20, 2, '#0f172a');
+    P(g, 31, 42, 2, 2, '#fbbf24');
+  }
   return c;
 }
 
-// === ИГРОК 16×16 ===
-function makePlayerSprite16() {
+function makeBossSprite128() {
+  const S = 128;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  const cx = 64, cy = 66;
+  E(g, cx, cy + 46, 42, 10, 'rgba(0,0,0,0.5)');
+  P(g, 40, 96, 12, 20, '#450a0a');
+  P(g, 76, 96, 12, 20, '#450a0a');
+  P(g, 38, 114, 16, 6, '#1a0505');
+  P(g, 74, 114, 16, 6, '#1a0505');
+  const bodyGrad = g.createRadialGradient(50, 50, 10, cx, cy, 50);
+  bodyGrad.addColorStop(0, '#dc2626'); bodyGrad.addColorStop(0.5, '#991b1b'); bodyGrad.addColorStop(1, '#450a0a');
+  g.fillStyle = bodyGrad; g.beginPath(); g.arc(cx, cy, 44, 0, Math.PI*2); g.fill();
+  g.strokeStyle = '#1a0505'; g.lineWidth = 3;
+  g.beginPath(); g.arc(cx, cy, 44, 0, Math.PI*2); g.stroke();
+  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(40, 50); g.lineTo(42, 80); g.stroke();
+  g.beginPath(); g.moveTo(88, 50); g.lineTo(86, 80); g.stroke();
+  g.beginPath(); g.moveTo(cx, 30); g.lineTo(cx, 65); g.stroke();
+  P(g, 18, 60, 12, 26, '#7f1d1d');
+  P(g, 98, 60, 12, 26, '#7f1d1d');
+  C(g, 24, 88, 8, '#991b1b');
+  C(g, 104, 88, 8, '#991b1b');
+  TRI(g, 16, 92, 20, 108, 24, 92, '#1a0505');
+  TRI(g, 22, 94, 26, 110, 30, 94, '#1a0505');
+  TRI(g, 98, 94, 102, 110, 106, 94, '#1a0505');
+  TRI(g, 104, 92, 108, 108, 112, 92, '#1a0505');
+  for (let i = 0; i < 5; i++) {
+    const sx = 30 + i * 17;
+    TRI(g, sx, 30, sx + 6, 12, sx + 12, 30, '#450a0a');
+  }
+  P(g, 42, 48, 18, 14, '#1a0505');
+  P(g, 68, 48, 18, 14, '#1a0505');
+  C(g, 51, 55, 6, '#fbbf24');
+  C(g, 77, 55, 6, '#fbbf24');
+  P(g, 48, 53, 4, 4, '#000');
+  P(g, 74, 53, 4, 4, '#000');
+  P(g, 49, 53, 2, 2, '#fef3c7');
+  P(g, 75, 53, 2, 2, '#fef3c7');
+  P(g, 40, 78, 48, 16, '#1a0505');
+  for (let i = 0; i < 8; i++) TRI(g, 42 + i*6, 78, 45 + i*6, 88, 48 + i*6, 78, '#f8fafc');
+  for (let i = 0; i < 8; i++) TRI(g, 43 + i*6, 94, 45 + i*6, 86, 47 + i*6, 94, '#f8fafc');
+  P(g, 46, 94, 2, 4, '#7f1d1d');
+  P(g, 80, 94, 2, 3, '#7f1d1d');
+  return c;
+}
+
+function makeBulletSprite16(color) {
   const S = 16;
   const c = makeCanvas(S, S);
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
-  
-  const cx = 7, cy = 8;
-  
-  // Тело
-  for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-      const dx = x - cx - 0.5;
-      const dy = y - cy - 0.5;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 5) {
-        g.fillStyle = '#3b82f6';
-        g.fillRect(x, y, 1, 1);
-      } else if (d < 5.8) {
-        g.fillStyle = '#bfdbfe';
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-  }
-  
-  // Блик
-  g.fillStyle = '#93c5fd';
-  g.fillRect(4, 5, 2, 1);
-  g.fillRect(4, 6, 1, 1);
-  
-  // Голова (маленький круг сверху)
-  g.fillStyle = '#e0e7ff';
-  g.fillRect(6, 4, 4, 3);
-  
-  // Глаз
-  g.fillStyle = '#1e293b';
-  g.fillRect(8, 5, 1, 1);
-  
-  // Руки (по бокам)
-  g.fillStyle = '#1e40af';
-  g.fillRect(2, 7, 1, 2);
-  g.fillRect(13, 7, 1, 2);
-  
+  C(g, 8, 8, 6, 'rgba(0,0,0,0.5)');
+  C(g, 8, 8, 5, color);
+  C(g, 6, 6, 2.5, '#ffffff');
+  C(g, 6, 6, 1.5, 'rgba(255,255,255,0.9)');
+  P(g, 2, 7, 3, 2, color);
   return c;
 }
 
-// === БОСС 32×32 ===
-function makeBossSprite32() {
+function makeTreeSprite64() {
+  const S = 64;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 32, 58, 20, 5, 'rgba(0,0,0,0.4)');
+  P(g, 27, 32, 10, 30, '#78350f');
+  P(g, 27, 32, 2, 30, '#451a03');
+  P(g, 35, 32, 2, 30, '#451a03');
+  for (let i = 0; i < 6; i++) {
+    P(g, 29, 34 + i*5, 1, 3, '#451a03');
+    P(g, 32, 36 + i*5, 1, 2, '#451a03');
+    P(g, 34, 35 + i*5, 1, 3, '#451a03');
+  }
+  TRI(g, 22, 60, 27, 60, 30, 56, '#5a2d0c');
+  TRI(g, 34, 56, 37, 60, 42, 60, '#5a2d0c');
+  P(g, 20, 30, 8, 2, '#78350f');
+  P(g, 37, 26, 8, 2, '#78350f');
+  C(g, 22, 20, 12, '#14532d');
+  C(g, 42, 18, 12, '#14532d');
+  C(g, 32, 12, 14, '#14532d');
+  C(g, 32, 28, 13, '#14532d');
+  C(g, 20, 18, 10, '#166534');
+  C(g, 44, 16, 10, '#166534');
+  C(g, 32, 10, 12, '#166534');
+  C(g, 30, 26, 10, '#166534');
+  C(g, 18, 14, 6, '#16a34a');
+  C(g, 32, 6, 7, '#16a34a');
+  C(g, 44, 12, 6, '#16a34a');
+  C(g, 28, 20, 5, '#22c55e');
+  C(g, 16, 12, 3, '#4ade80');
+  C(g, 30, 4, 3, '#4ade80');
+  return c;
+}
+
+function makeCarSprite() {
+  const W = 96, H = 64;
+  const c = makeCanvas(W, H);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 48, 56, 38, 6, 'rgba(0,0,0,0.5)');
+  const bodyGrad = g.createLinearGradient(0, 20, 0, 48);
+  bodyGrad.addColorStop(0, '#3b82f6'); bodyGrad.addColorStop(0.5, '#1e40af'); bodyGrad.addColorStop(1, '#1e3a8a');
+  g.fillStyle = bodyGrad;
+  g.beginPath();
+  g.moveTo(8, 40); g.lineTo(12, 24); g.lineTo(24, 18); g.lineTo(72, 18); g.lineTo(84, 24); g.lineTo(88, 40); g.lineTo(88, 48); g.lineTo(8, 48); g.closePath();
+  g.fill();
+  g.strokeStyle = '#0f172a'; g.lineWidth = 2; g.stroke();
+  P(g, 24, 22, 48, 16, '#0f172a');
+  const glassGrad = g.createLinearGradient(0, 24, 0, 38);
+  glassGrad.addColorStop(0, '#7dd3fc'); glassGrad.addColorStop(1, '#0284c7');
+  g.fillStyle = glassGrad; g.fillRect(26, 24, 20, 12); g.fillRect(50, 24, 20, 12);
+  P(g, 28, 25, 6, 3, 'rgba(255,255,255,0.7)');
+  P(g, 46, 22, 4, 16, '#0f172a');
+  P(g, 86, 30, 5, 4, '#fef3c7');
+  P(g, 5, 30, 5, 4, '#dc2626');
+  C(g, 20, 50, 8, '#0a0e14');
+  C(g, 20, 50, 6, '#1e293b');
+  C(g, 20, 50, 3, '#475569');
+  C(g, 76, 50, 8, '#0a0e14');
+  C(g, 76, 50, 6, '#1e293b');
+  C(g, 76, 50, 3, '#475569');
+  return c;
+}
+
+function makeCrateSprite64() {
+  const S = 64;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 34, 58, 28, 5, 'rgba(0,0,0,0.4)');
+  P(g, 4, 4, 56, 56, '#92400e');
+  P(g, 3, 3, 58, 2, '#451a03'); P(g, 3, 59, 58, 2, '#451a03');
+  P(g, 3, 3, 2, 58, '#451a03'); P(g, 59, 3, 2, 58, '#451a03');
+  for (let i = 0; i < 4; i++) {
+    P(g, 5, 6 + i*14, 54, 1, '#451a03');
+    P(g, 5, 15 + i*14, 54, 1, 'rgba(0,0,0,0.3)');
+    for (let j = 0; j < 5; j++) P(g, 8 + j*11, 10 + i*14, 3, 1, '#78350f');
+  }
+  g.strokeStyle = '#a16207'; g.lineWidth = 6;
+  g.beginPath(); g.moveTo(8, 8); g.lineTo(56, 56); g.moveTo(56, 8); g.lineTo(8, 56); g.stroke();
+  g.strokeStyle = '#451a03'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(8, 8); g.lineTo(56, 56); g.moveTo(56, 8); g.lineTo(8, 56); g.stroke();
+  P(g, 4, 4, 8, 8, '#94a3b8'); P(g, 52, 4, 8, 8, '#94a3b8');
+  P(g, 4, 52, 8, 8, '#94a3b8'); P(g, 52, 52, 8, 8, '#94a3b8');
+  C(g, 8, 8, 1.5, '#475569'); C(g, 56, 8, 1.5, '#475569');
+  C(g, 8, 56, 1.5, '#475569'); C(g, 56, 56, 1.5, '#475569');
+  P(g, 6, 6, 20, 2, 'rgba(255,255,255,0.15)');
+  return c;
+}
+
+function makeBarrelSprite64() {
+  const S = 64;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 34, 58, 22, 5, 'rgba(0,0,0,0.4)');
+  const bodyGrad = g.createLinearGradient(12, 0, 52, 0);
+  bodyGrad.addColorStop(0, '#713f12'); bodyGrad.addColorStop(0.3, '#ca8a04'); bodyGrad.addColorStop(0.7, '#a16207'); bodyGrad.addColorStop(1, '#451a03');
+  g.fillStyle = bodyGrad;
+  g.beginPath(); g.ellipse(32, 32, 20, 26, 0, 0, Math.PI*2); g.fill();
+  g.strokeStyle = '#451a03'; g.lineWidth = 2; g.stroke();
+  const lidGrad = g.createRadialGradient(28, 8, 2, 32, 10, 20);
+  lidGrad.addColorStop(0, '#fbbf24'); lidGrad.addColorStop(1, '#a16207');
+  g.fillStyle = lidGrad;
+  g.beginPath(); g.ellipse(32, 10, 19, 5, 0, 0, Math.PI*2); g.fill(); g.stroke();
+  P(g, 12, 18, 40, 3, '#451a03'); P(g, 12, 18, 40, 1, '#94a3b8');
+  P(g, 12, 31, 40, 3, '#451a03'); P(g, 12, 31, 40, 1, '#94a3b8');
+  P(g, 12, 44, 40, 3, '#451a03'); P(g, 12, 44, 40, 1, '#94a3b8');
+  P(g, 18, 22, 4, 3, '#78350f'); P(g, 42, 36, 5, 4, '#78350f');
+  P(g, 18, 14, 4, 20, 'rgba(255,255,255,0.15)');
+  return c;
+}
+
+function makeRockSprite64() {
+  const S = 64;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 34, 56, 24, 6, 'rgba(0,0,0,0.4)');
+  const grad = g.createRadialGradient(24, 22, 5, 32, 32, 30);
+  grad.addColorStop(0, '#94a3b8'); grad.addColorStop(0.5, '#64748b'); grad.addColorStop(1, '#334155');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.moveTo(8, 40); g.lineTo(12, 20); g.lineTo(24, 8); g.lineTo(42, 6); g.lineTo(54, 18); g.lineTo(58, 38); g.lineTo(48, 52); g.lineTo(24, 56); g.lineTo(10, 50); g.closePath();
+  g.fill();
+  g.strokeStyle = '#1e293b'; g.lineWidth = 2; g.stroke();
+  g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(24, 8); g.lineTo(32, 30); g.lineTo(54, 18); g.stroke();
+  g.beginPath(); g.moveTo(32, 30); g.lineTo(24, 56); g.stroke();
+  g.strokeStyle = '#0f172a'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(16, 26); g.lineTo(22, 32); g.lineTo(20, 40); g.stroke();
+  C(g, 18, 44, 3, '#166534'); C(g, 22, 48, 2, '#15803d');
+  P(g, 22, 14, 8, 3, 'rgba(255,255,255,0.35)');
+  P(g, 20, 18, 4, 2, 'rgba(255,255,255,0.25)');
+  return c;
+}
+
+function makeBushSprite64() {
+  const S = 64;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 32, 54, 22, 5, 'rgba(0,0,0,0.4)');
+  const clusters = [
+    { x: 20, y: 42, r: 12, color: '#14532d' },
+    { x: 44, y: 42, r: 12, color: '#14532d' },
+    { x: 32, y: 32, r: 15, color: '#166534' },
+    { x: 22, y: 28, r: 10, color: '#15803d' },
+    { x: 42, y: 28, r: 10, color: '#15803d' },
+    { x: 32, y: 20, r: 11, color: '#16a34a' },
+    { x: 24, y: 22, r: 6, color: '#22c55e' },
+    { x: 40, y: 20, r: 6, color: '#22c55e' },
+  ];
+  for (const cl of clusters) C(g, cl.x, cl.y, cl.r, cl.color);
+  C(g, 24, 16, 3, '#4ade80'); C(g, 40, 18, 2, '#4ade80');
+  C(g, 28, 38, 5, '#14532d'); C(g, 42, 36, 4, '#14532d');
+  return c;
+}
+
+function makeBarricadeSprite64() {
+  const S = 64;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  E(g, 34, 58, 26, 5, 'rgba(0,0,0,0.4)');
+  P(g, 6, 6, 52, 52, '#92400e');
+  P(g, 4, 4, 56, 2, '#451a03'); P(g, 4, 58, 56, 2, '#451a03');
+  P(g, 4, 4, 2, 56, '#451a03'); P(g, 58, 4, 2, 56, '#451a03');
+  for (let i = 0; i < 5; i++) P(g, 8, 10 + i*10, 48, 1, '#451a03');
+  P(g, 16, 8, 1, 48, '#451a03');
+  P(g, 32, 8, 1, 48, '#451a03');
+  P(g, 48, 8, 1, 48, '#451a03');
+  P(g, 8, 10, 48, 1, 'rgba(0,0,0,0.3)');
+  P(g, 8, 30, 48, 1, 'rgba(0,0,0,0.3)');
+  P(g, 8, 50, 48, 1, 'rgba(0,0,0,0.3)');
+  C(g, 10, 12, 1, '#64748b'); C(g, 54, 12, 1, '#64748b');
+  P(g, 8, 8, 20, 2, 'rgba(255,255,255,0.2)');
+  return c;
+}
+
+function makeHealthSprite32() {
   const S = 32;
   const c = makeCanvas(S, S);
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
-  
-  const cx = 15.5, cy = 16;
-  
-  // Тело
-  for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 12) {
-        // Градиент через тёмные слои
-        const ratio = d / 12;
-        if (ratio < 0.4) g.fillStyle = '#dc2626';
-        else if (ratio < 0.7) g.fillStyle = '#991b1b';
-        else g.fillStyle = '#7f1d1d';
-        g.fillRect(x, y, 1, 1);
-      } else if (d < 13.5) {
-        g.fillStyle = '#450a0a';
-        g.fillRect(x, y, 1, 1);
-      }
-    }
+  const grad = g.createRadialGradient(12, 10, 3, 16, 16, 16);
+  grad.addColorStop(0, '#4ade80'); grad.addColorStop(1, '#166534');
+  g.fillStyle = grad; C(g, 16, 16, 14, grad);
+  g.strokeStyle = '#22c55e'; g.lineWidth = 2;
+  g.beginPath(); g.arc(16, 16, 14, 0, Math.PI*2); g.stroke();
+  P(g, 14, 6, 4, 20, '#ffffff');
+  P(g, 6, 14, 20, 4, '#ffffff');
+  P(g, 14, 25, 4, 1, 'rgba(0,0,0,0.3)');
+  P(g, 25, 14, 1, 4, 'rgba(0,0,0,0.3)');
+  C(g, 12, 10, 3, 'rgba(255,255,255,0.3)');
+  return c;
+}
+
+function makeGrenadeSprite32() {
+  const S = 32;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  const grad = g.createRadialGradient(12, 14, 3, 16, 20, 14);
+  grad.addColorStop(0, '#a3e635'); grad.addColorStop(1, '#365314');
+  g.fillStyle = grad; C(g, 16, 20, 11, grad);
+  g.strokeStyle = '#bef264'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(16, 20, 11, 0, Math.PI*2); g.stroke();
+  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(8, 20); g.lineTo(24, 20); g.stroke();
+  g.beginPath(); g.moveTo(16, 10); g.lineTo(16, 30); g.stroke();
+  P(g, 13, 6, 6, 5, '#94a3b8');
+  P(g, 13, 6, 6, 1, '#cbd5e1');
+  g.strokeStyle = '#64748b'; g.lineWidth = 2;
+  g.beginPath(); g.arc(22, 7, 4, 0, Math.PI*2); g.stroke();
+  C(g, 11, 15, 2, 'rgba(255,255,255,0.4)');
+  return c;
+}
+
+function makeAmmoSprite32() {
+  const S = 32;
+  const c = makeCanvas(S, S);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  const grad = g.createRadialGradient(12, 10, 3, 16, 16, 16);
+  grad.addColorStop(0, '#fcd34d'); grad.addColorStop(1, '#b45309');
+  g.fillStyle = grad; C(g, 16, 16, 14, grad);
+  g.strokeStyle = '#fbbf24'; g.lineWidth = 2;
+  g.beginPath(); g.arc(16, 16, 14, 0, Math.PI*2); g.stroke();
+  for (let i = 0; i < 3; i++) {
+    const x = 8 + i * 7;
+    P(g, x, 12, 4, 12, '#78350f');
+    P(g, x, 12, 1, 12, '#451a03');
+    P(g, x+3, 12, 1, 12, '#451a03');
+    TRI(g, x, 12, x+2, 6, x+4, 12, '#dc2626');
+    P(g, x, 22, 4, 2, '#fbbf24');
   }
-  
-  // Шрамы (вертикальные линии)
-  g.fillStyle = '#1a0505';
-  for (let i = 0; i < 5; i++) {
-    const sx = 6 + Math.floor(Math.random() * 20);
-    const sy = 5 + Math.floor(Math.random() * 6);
-    const len = 2 + Math.floor(Math.random() * 5);
-    g.fillRect(sx, sy, 1, len);
-  }
-  
-  // Глаза (большие 4x4)
-  g.fillStyle = '#000';
-  g.fillRect(9, 12, 5, 5);
-  g.fillRect(18, 12, 5, 5);
-  
-  // Зрачки светящиеся
-  g.fillStyle = '#fbbf24';
-  g.fillRect(11, 14, 2, 2);
-  g.fillRect(20, 14, 2, 2);
-  
-  // Яркие центры
-  g.fillStyle = '#fef3c7';
-  g.fillRect(11, 14, 1, 1);
-  g.fillRect(20, 14, 1, 1);
-  
-  // Пасть (широкая)
-  g.fillStyle = '#1a0505';
-  g.fillRect(9, 21, 14, 4);
-  
-  // Зубы сверху
-  g.fillStyle = '#f8fafc';
-  for (let i = 0; i < 6; i++) {
-    g.fillRect(9 + i*2 + 1, 21, 1, 2);
-  }
-  // Зубы снизу
-  for (let i = 0; i < 6; i++) {
-    g.fillRect(9 + i*2 + 2, 23, 1, 2);
-  }
-  
+  C(g, 12, 10, 2, 'rgba(255,255,255,0.4)');
   return c;
 }
 
-// === ПУЛЯ 8×8 ===
-function makeBulletSprite8(color) {
-  const S = 8;
+function makeNightMask() {
+  const S = NIGHT_MASK_SIZE;
   const c = makeCanvas(S, S);
   const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Ядро
-  g.fillStyle = color;
-  g.fillRect(2, 2, 4, 4);
-  g.fillRect(3, 1, 2, 6);
-  g.fillRect(1, 3, 6, 2);
-  
-  // Блик
-  g.fillStyle = '#fff';
-  g.fillRect(3, 3, 2, 2);
-  
-  return c;
-}
-
-// === ДЕРЕВО 24×24 ===
-function makeTreeSprite24() {
-  const S = 24;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Ствол
-  g.fillStyle = '#78350f';
-  g.fillRect(10, 14, 4, 10);
-  g.fillStyle = '#451a03';
-  g.fillRect(10, 14, 1, 10);
-  g.fillRect(13, 14, 1, 10);
-  
-  // Крона (несколько пиксельных кругов)
-  const clusters = [
-    { cx: 12, cy: 10, r: 8, color: '#14532d' },
-    { cx: 8, cy: 8, r: 5, color: '#16a34a' },
-    { cx: 16, cy: 9, r: 5, color: '#16a34a' },
-    { cx: 10, cy: 5, r: 4, color: '#22c55e' },
-    { cx: 14, cy: 6, r: 3, color: '#4ade80' }
-  ];
-  
-  for (const cl of clusters) {
-    for (let y = 0; y < S; y++) {
-      for (let x = 0; x < S; x++) {
-        const dx = x - cl.cx;
-        const dy = y - cl.cy;
-        if (dx*dx + dy*dy <= cl.r*cl.r) {
-          g.fillStyle = cl.color;
-          g.fillRect(x, y, 1, 1);
-        }
-      }
-    }
-  }
-  
-  return c;
-}
-
-// === ЯЩИК 16×16 ===
-function makeCrateSprite16() {
-  const S = 16;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Основа
-  g.fillStyle = '#92400e';
-  g.fillRect(1, 1, 14, 14);
-  
-  // Тёмные края
-  g.fillStyle = '#451a03';
-  g.fillRect(0, 0, 16, 1);
-  g.fillRect(0, 15, 16, 1);
-  g.fillRect(0, 0, 1, 16);
-  g.fillRect(15, 0, 1, 16);
-  
-  // Доски (горизонтальные)
-  g.fillStyle = '#78350f';
-  g.fillRect(1, 4, 14, 1);
-  g.fillRect(1, 8, 14, 1);
-  g.fillRect(1, 11, 14, 1);
-  
-  // Крест
-  g.fillStyle = '#a16207';
-  for (let i = 0; i < 14; i++) {
-    g.fillRect(1 + i, 1 + i, 1, 1);
-    g.fillRect(14 - i, 1 + i, 1, 1);
-  }
-  
-  // Блик
-  g.fillStyle = '#fbbf24';
-  g.fillRect(2, 2, 3, 1);
-  
-  return c;
-}
-
-// === МАШИНА 24×16 ===
-function makeCarSprite() {
-  const W = 24, H = 16;
-  const c = makeCanvas(W, H);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Корпус
-  g.fillStyle = '#3b82f6';
-  g.fillRect(3, 3, 18, 10);
-  g.fillStyle = '#1e40af';
-  g.fillRect(3, 10, 18, 3);
-  
-  // Кабина
-  g.fillStyle = '#1e293b';
-  g.fillRect(7, 5, 10, 4);
-  
-  // Стёкла
-  g.fillStyle = '#38bdf8';
-  g.fillRect(8, 5, 3, 3);
-  g.fillRect(13, 5, 3, 3);
-  
-  // Колёса
-  g.fillStyle = '#0a0e14';
-  g.fillRect(4, 12, 4, 3);
-  g.fillRect(16, 12, 4, 3);
-  
-  // Блик
-  g.fillStyle = '#93c5fd';
-  g.fillRect(4, 4, 4, 1);
-  
-  return c;
-}
-
-// === БОЧКА 16×16 ===
-function makeBarrelSprite16() {
-  const S = 16;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Тело (пиксельный круг)
-  for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-      const dx = x - 7.5;
-      const dy = y - 7.5;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 7) {
-        g.fillStyle = '#a16207';
-        g.fillRect(x, y, 1, 1);
-      } else if (d < 7.8) {
-        g.fillStyle = '#451a03';
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-  }
-  
-  // Обручи (горизонтальные линии)
-  g.fillStyle = '#451a03';
-  g.fillRect(2, 5, 12, 1);
-  g.fillRect(2, 10, 12, 1);
-  
-  // Блик
-  g.fillStyle = '#fbbf24';
-  g.fillRect(4, 3, 2, 1);
-  
-  return c;
-}
-
-// === КАМЕНЬ 16×16 ===
-function makeRockSprite16() {
-  const S = 16;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Неровный камень
-  const shape = [
-    [5,1,6,0], // верхняя часть
-    [3,2,10,1],
-    [2,4,12,1],
-    [1,5,14,1],
-    [1,6,14,4],
-    [2,10,12,2],
-    [4,12,8,2]
-  ];
-  
-  g.fillStyle = '#64748b';
-  for (const [x, y, w, h] of shape) {
-    g.fillRect(x, y, w, h);
-  }
-  
-  // Тёмный контур
-  g.fillStyle = '#334155';
-  g.fillRect(1, 10, 12, 1);
-  g.fillRect(4, 13, 8, 1);
-  
-  // Блик
-  g.fillStyle = '#94a3b8';
-  g.fillRect(4, 4, 3, 2);
-  
-  // Трещина
-  g.fillStyle = '#1e293b';
-  g.fillRect(7, 5, 1, 3);
-  g.fillRect(8, 8, 1, 2);
-  
-  return c;
-}
-
-// === БАРРИКАДА 16×16 ===
-function makeBarricadeSprite16() {
-  const S = 16;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Основа
-  g.fillStyle = '#92400e';
-  g.fillRect(1, 1, 14, 14);
-  
-  // Горизонтальные доски
-  g.fillStyle = '#78350f';
-  g.fillRect(1, 4, 14, 1);
-  g.fillRect(1, 8, 14, 1);
-  g.fillRect(1, 12, 14, 1);
-  
-  // Тёмный контур
-  g.fillStyle = '#451a03';
-  g.fillRect(0, 0, 16, 1);
-  g.fillRect(0, 15, 16, 1);
-  g.fillRect(0, 0, 1, 16);
-  g.fillRect(15, 0, 1, 16);
-  
-  // Блик
-  g.fillStyle = '#ca8a04';
-  g.fillRect(2, 2, 4, 1);
-  
-  return c;
-}
-
-// === АПТЕЧКА 8×8 ===
-function makeHealthSprite8() {
-  const S = 8;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Круг
-  g.fillStyle = '#22c55e';
-  g.fillRect(1, 2, 6, 4);
-  g.fillRect(2, 1, 4, 6);
-  
-  // Крест
-  g.fillStyle = '#fff';
-  g.fillRect(3, 2, 2, 4);
-  g.fillRect(2, 3, 4, 2);
-  
-  return c;
-}
-
-// === ГРАНАТА 8×8 ===
-function makeGrenadeSprite8() {
-  const S = 8;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Тело
-  g.fillStyle = '#65a30d';
-  g.fillRect(2, 3, 4, 4);
-  g.fillRect(1, 4, 6, 2);
-  
-  // Чек
-  g.fillStyle = '#a3a3a3';
-  g.fillRect(3, 1, 2, 2);
-  
-  // Кольцо
-  g.fillStyle = '#d4d4d4';
-  g.fillRect(5, 1, 1, 1);
-  g.fillRect(6, 2, 1, 1);
-  
-  return c;
-}
-
-// === ПАТРОНЫ 8×8 ===
-function makeAmmoSprite8() {
-  const S = 8;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Круг
-  g.fillStyle = '#fbbf24';
-  g.fillRect(1, 2, 6, 4);
-  g.fillRect(2, 1, 4, 6);
-  
-  // Гильза
-  g.fillStyle = '#78350f';
-  g.fillRect(3, 3, 2, 4);
-  
-  // Пуля
-  g.fillStyle = '#dc2626';
-  g.fillRect(3, 1, 2, 2);
-  
-  return c;
-}
-
-// === БУШ 16×16 ===
-function makeBushSprite16() {
-  const S = 16;
-  const c = makeCanvas(S, S);
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  
-  // Несколько маленьких кругов
-  const clusters = [
-    { cx: 5, cy: 10, r: 3, color: '#14532d' },
-    { cx: 11, cy: 10, r: 3, color: '#14532d' },
-    { cx: 8, cy: 7, r: 4, color: '#16a34a' },
-    { cx: 6, cy: 6, r: 2, color: '#22c55e' },
-    { cx: 10, cy: 5, r: 2, color: '#22c55e' }
-  ];
-  
-  for (const cl of clusters) {
-    for (let y = 0; y < S; y++) {
-      for (let x = 0; x < S; x++) {
-        const dx = x - cl.cx;
-        const dy = y - cl.cy;
-        if (dx*dx + dy*dy <= cl.r*cl.r) {
-          g.fillStyle = cl.color;
-          g.fillRect(x, y, 1, 1);
-        }
-      }
-    }
-  }
+  const grad = g.createRadialGradient(S/2, S/2, S*0.05, S/2, S/2, S/2);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.15, 'rgba(255,255,255,0.98)');
+  grad.addColorStop(0.35, 'rgba(255,255,255,0.75)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.4)');
+  grad.addColorStop(0.75, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, S, S);
   return c;
 }
 
 function initSprites() {
-  SPRITES.zombie_normal = makeZombieSprite16('#4a7c3a', '#2d4f24', '#fbbf24', '#7f1d1d', false, false);
-  SPRITES.zombie_fast = makeZombieSprite16('#a83a2a', '#6b1f15', '#fde047', '#450a0a', false, false);
-  SPRITES.zombie_tank = makeZombieSprite16('#6b4a8a', '#3d2a54', '#fbbf24', '#1a0a0a', true, false);
-  SPRITES.zombie_explosive = makeZombieSprite16('#d4500c', '#8a3208', '#fef3c7', '#7f1d1d', false, true);
-  SPRITES.zombie_spitter = makeZombieSprite16('#c49a08', '#8a6b05', '#dc2626', '#450a0a', false, false);
-  SPRITES.zombie_invisible = makeZombieSprite16('#475569', '#1e293b', '#ef4444', '#0f172a', false, false);
-  SPRITES.zombie_armored = makeZombieSprite16('#64748b', '#334155', '#fbbf24', '#1e293b', true, false);
-  
-  SPRITES.player = makePlayerSprite16();
-  SPRITES.bullet_yellow = makeBulletSprite8('#fde047');
-  SPRITES.bullet_orange = makeBulletSprite8('#f97316');
-  SPRITES.bullet_cyan = makeBulletSprite8('#22d3ee');
-  SPRITES.bullet_purple = makeBulletSprite8('#a855f7');
-  SPRITES.bullet_red = makeBulletSprite8('#ef4444');
-  SPRITES.bullet_green = makeBulletSprite8('#84cc16');
-  
-  SPRITES.boss = makeBossSprite32();
+  SPRITES.zombie_normal = makeZombieSprite64('#4a7c3a', '#2d4f24', '#6b9e58', '#fbbf24', false, false, false);
+  SPRITES.zombie_fast = makeZombieSprite64('#a83a2a', '#6b1f15', '#c45a48', '#fde047', false, false, false);
+  SPRITES.zombie_tank = makeZombieSprite64('#6b4a8a', '#3d2a54', '#8a6ba8', '#fbbf24', false, false, true);
+  SPRITES.zombie_explosive = makeZombieSprite64('#d4500c', '#8a3208', '#f97316', '#fef3c7', false, true, false);
+  SPRITES.zombie_spitter = makeZombieSprite64('#c49a08', '#8a6b05', '#eab308', '#dc2626', false, false, false);
+  SPRITES.zombie_invisible = makeZombieSprite64('#475569', '#1e293b', '#64748b', '#ef4444', false, false, false);
+  SPRITES.zombie_armored = makeZombieSprite64('#64748b', '#334155', '#94a3b8', '#fbbf24', true, false, false);
+  SPRITES.player = makePlayerSprite64();
+  SPRITES.boss = makeBossSprite128();
+  SPRITES.bullet_yellow = makeBulletSprite16('#fde047');
+  SPRITES.bullet_orange = makeBulletSprite16('#f97316');
+  SPRITES.bullet_cyan = makeBulletSprite16('#22d3ee');
+  SPRITES.bullet_purple = makeBulletSprite16('#a855f7');
+  SPRITES.bullet_red = makeBulletSprite16('#ef4444');
+  SPRITES.bullet_green = makeBulletSprite16('#84cc16');
+  SPRITES.tree = makeTreeSprite64();
   SPRITES.car = makeCarSprite();
-  SPRITES.crate = makeCrateSprite16();
-  SPRITES.tree = makeTreeSprite24();
-  SPRITES.barrel = makeBarrelSprite16();
-  SPRITES.rock = makeRockSprite16();
-  SPRITES.bush = makeBushSprite16();
-  SPRITES.barricade = makeBarricadeSprite16();
-  SPRITES.health = makeHealthSprite8();
-  SPRITES.grenade = makeGrenadeSprite8();
-  SPRITES.ammo = makeAmmoSprite8();
+  SPRITES.crate = makeCrateSprite64();
+  SPRITES.barrel = makeBarrelSprite64();
+  SPRITES.rock = makeRockSprite64();
+  SPRITES.bush = makeBushSprite64();
+  SPRITES.barricade = makeBarricadeSprite64();
+  SPRITES.health = makeHealthSprite32();
+  SPRITES.grenade = makeGrenadeSprite32();
+  SPRITES.ammo = makeAmmoSprite32();
+  NIGHT_MASK = makeNightMask();
 }
 initSprites();
+
+// === ПРОМОКОДЫ ===
+const PROMO_CODES = {
+  '2v3l8a8d': { crystals: 100, admin: true, msg: '🔓 Админ-доступ активирован! +100 💎' },
+  'oleg52':   { crystals: 5,   msg: '🎁 Промокод принят! +5 💎' },
+  'Kokorin78':{ crystals: 1,   msg: '🎁 Промокод принят! +1 💎' }
+};
 
 // === КОНСТАНТЫ ===
 const MAX_PARTICLES = 50;
@@ -731,7 +637,6 @@ function resize() {
   canvas.width = Math.floor(W * DPR); canvas.height = Math.floor(H * DPR);
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  // ВАЖНО: отключаем сглаживание для пиксель-арта
   ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener('resize', resize); resize();
@@ -751,8 +656,8 @@ function beep(freq, dur, type='sine', vol=0.04) {
 }
 
 const META_KEY = 'zombie_meta_v2';
-let meta = { crystals: 0, upgrades: { hp: 0, damage: 0, speed: 0, coinDrop: 0, startGrenades: 0, startCoins: 0 } };
-try { const s = localStorage.getItem(META_KEY); if (s) meta = JSON.parse(s); } catch(e) {}
+let meta = { crystals: 0, upgrades: { hp: 0, damage: 0, speed: 0, coinDrop: 0, startGrenades: 0, startCoins: 0 }, promos: [], isAdmin: false };
+try { const s = localStorage.getItem(META_KEY); if (s) { const parsed = JSON.parse(s); meta = Object.assign(meta, parsed); if (!meta.promos) meta.promos = []; } } catch(e) {}
 function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch(e) {} }
 
 const SAVE_KEY = 'zombie_save_v2';
@@ -784,9 +689,9 @@ const CLASSES = [
 ];
 
 const MAPS = [
-  { id: 'city', name: '🏙️ Город', bg: '#0a0e14', floor: 'tile', obstacleTypes: ['car', 'crate', 'barrel'], obstacleCount: 22 },
-  { id: 'forest', name: '🌲 Лес', bg: '#0a1410', floor: 'grass', obstacleTypes: ['tree', 'rock', 'bush', 'tree'], obstacleCount: 26 },
-  { id: 'bunker', name: '🏭 Бункер', bg: '#0a0e1a', floor: 'line', obstacleTypes: ['crate', 'barrel'], obstacleCount: 20 }
+  { id: 'city', name: '🏙️ Город', bg: '#0a0e14', floor: 'tile', obstacleTypes: ['car', 'crate', 'barrel'], obstacleCount: 20 },
+  { id: 'forest', name: '🌲 Лес', bg: '#0a1410', floor: 'grass', obstacleTypes: ['tree', 'rock', 'bush', 'tree'], obstacleCount: 24 },
+  { id: 'bunker', name: '🏭 Бункер', bg: '#0a0e1a', floor: 'line', obstacleTypes: ['crate', 'barrel'], obstacleCount: 18 }
 ];
 
 const WEAPONS = {
@@ -1138,19 +1043,6 @@ function spawnZombie(type) {
   });
 }
 
-function spawnZombieAt(x, y, type) {
-  if (game.zombies.length >= MAX_ZOMBIES) return;
-  const cfg = Z_TYPES[type];
-  const hpScale = 1 + (game.wave - 1) * 0.15;
-  game.zombies.push({
-    x, y, r: cfg.r,
-    hp: cfg.hp * hpScale * 0.5, maxHp: cfg.hp * hpScale * 0.5,
-    speed: cfg.speed, dmg: cfg.dmg, color: cfg.color, type,
-    coinMin: 1, coinMax: 2, armor: cfg.armor || 0,
-    angle: 0, hitFlash: 0, slowMult: 1, _exploding: false, isZombie: true
-  });
-}
-
 function spawnBoss() {
   const waveHp = 500 + game.wave * 250;
   game.boss = {
@@ -1314,7 +1206,6 @@ function spawnBlood(x, y, count) {
     game.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(0.3, 0.6), maxLife: 0.6, size: rnd(2, 4), color: `hsl(${348 + Math.random()*16}, 82%, ${32 + Math.random()*22}%)` });
   }
 }
-
 function update(dt) {
   if (game.state !== 'playing') return;
   game.time += dt;
@@ -1716,22 +1607,44 @@ function buyMeta(id, fromDeath) {
   renderMeta(fromDeath);
 }
 
-grenadeBtn.addEventListener('click', (e) => { e.preventDefault(); if (game.state === 'playing') throwGrenade(); });
-barricadeBtn.addEventListener('click', (e) => { e.preventDefault(); if (game.state === 'playing') placeBarricade(); });
-reloadBtn.addEventListener('click', (e) => { e.preventDefault(); if (game.state === 'playing') startReload(); });
-
-pauseBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (game.state === 'playing') {
-    game.state = 'paused'; saveGame(); screenEl.classList.add('active');
-    screenInner.innerHTML = `<h1 class="title">⏸ ПАУЗА</h1><div style="background:#1e293b;border-radius:12px;padding:15px;margin-bottom:20px;"><div class="stat-line">Волна: <b>${game.wave}</b></div><div class="stat-line">Убито: <b>${game.kills}</b></div><div class="stat-line">Монет: <b>${game.coins}</b></div></div><button class="btn-big green" id="resumeBtn">▶ ПРОДОЛЖИТЬ</button><button class="btn-big gray" id="quitBtn">🏠 В МЕНЮ</button>`;
-    document.getElementById('resumeBtn').addEventListener('click', () => { game.state = 'playing'; screenEl.classList.remove('active'); game.lastTime = performance.now(); });
-    document.getElementById('quitBtn').addEventListener('click', () => openMenu());
-  } else if (game.state === 'paused') {
-    game.state = 'playing'; screenEl.classList.remove('active'); game.lastTime = performance.now();
+// === ПРОМОКОД ===
+function activatePromo() {
+  const input = document.getElementById('promoInput');
+  if (!input) return;
+  const code = input.value.trim();
+  if (!code) { beep(200, 0.15, 'square', 0.06); return; }
+  if (!meta.promos) meta.promos = [];
+  if (meta.promos.includes(code)) {
+    beep(150, 0.2, 'sawtooth', 0.06);
+    showPromoResult('❌ Уже активирован', '#ef4444');
+    return;
   }
-});
- 
+  const promo = PROMO_CODES[code];
+  if (!promo) {
+    beep(150, 0.2, 'sawtooth', 0.06);
+    showPromoResult('❌ Неверный код', '#ef4444');
+    return;
+  }
+  meta.promos.push(code);
+  if (promo.crystals) meta.crystals += promo.crystals;
+  if (promo.admin) meta.isAdmin = true;
+  saveMeta();
+  beep(1000, 0.15, 'sine', 0.08);
+  setTimeout(() => beep(1300, 0.2, 'sine', 0.08), 100);
+  showPromoResult(promo.msg, '#22c55e');
+  input.value = '';
+}
+
+function showPromoResult(text, color) {
+  const result = document.getElementById('promoResult');
+  if (!result) return;
+  result.textContent = text;
+  result.style.color = color;
+  result.style.opacity = '1';
+  setTimeout(() => { result.style.opacity = '0'; }, 3000);
+}
+
+// === ГЛАВНОЕ МЕНЮ ===
 function openMenu() {
   game.state = 'menu';
   screenEl.classList.add('active');
@@ -1744,9 +1657,23 @@ function openMenu() {
     ${cont}
     <button class="btn-big" id="playBtn">▶ НОВАЯ ИГРА</button>
     <button class="btn-big gray" id="metaBtn">💎 МЕТА-ПРОГРЕСС</button>
+
+    <div style="margin-top:16px; padding:14px; background:#1e293b; border-radius:12px; border:1px solid #334155;">
+      <div style="font-size:12px; color:#94a3b8; margin-bottom:8px; font-weight:800; text-align:left;">🎁 Промокод</div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="promoInput" placeholder="Введи код..." autocomplete="off" style="flex:1; padding:12px; border-radius:10px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; text-align:center; font-weight:700; outline:none;" />
+        <button id="promoBtn" style="padding:12px 22px; border:none; border-radius:10px; background:linear-gradient(135deg,#22c55e,#15803d); color:white; font-weight:900; font-size:16px;">✓</button>
+      </div>
+      <div id="promoResult" style="font-size:12px; font-weight:800; text-align:center; margin-top:8px; opacity:0; transition:opacity 0.3s; min-height:16px;"></div>
+    </div>
+
     <div class="hint"><p>🕹️ Води пальцем — движение</p><p>🎯 Стрельба автоматическая</p><p>🔄 Перезарядка</p><p>📦 Патроны с зомби</p><p>💣 Граната · 🧱 Баррикада</p></div>`;
   document.getElementById('playBtn').addEventListener('click', () => { clearSave(); openClassSelect(); });
   document.getElementById('metaBtn').addEventListener('click', () => { game.state = 'meta'; renderMeta(false); });
+  document.getElementById('promoBtn').addEventListener('click', activatePromo);
+  document.getElementById('promoInput').addEventListener('keypress', (e) => { 
+    if (e.key === 'Enter') { e.preventDefault(); activatePromo(); }
+  });
   if (saved) {
     document.getElementById('continueBtn').addEventListener('click', () => continueGame(saved));
     document.getElementById('deleteSaveBtn').addEventListener('click', () => { if (confirm('Удалить сохранение?')) { clearSave(); openMenu(); } });
@@ -1802,7 +1729,6 @@ function drawFloor(cam) {
   for (let x = startX; x < endX; x += gs) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
   for (let y = startY; y < endY; y += gs) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
   ctx.stroke();
-  // Граница карты
   ctx.strokeStyle = 'rgba(239,68,68,0.5)';
   ctx.lineWidth = 6;
   ctx.beginPath();
@@ -1811,33 +1737,17 @@ function drawFloor(cam) {
   ctx.restore();
 }
 
-// Отрисовка спрайта с отключённым сглаживанием
-function drawPixelSprite(sprite, x, y, w, h, angle) {
-  if (!sprite) return;
-  ctx.save();
-  ctx.translate(x, y);
-  if (angle !== undefined) ctx.rotate(angle);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sprite, -w/2, -h/2, w, h);
-  ctx.restore();
-}
-
 function drawObstacle(o) {
   const sprite = SPRITES[o.type];
   ctx.save();
-  // Тень
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath();
   ctx.ellipse(o.x + 4, o.y + o.size * 0.35, o.size * 0.5, o.size * 0.25, 0, 0, Math.PI*2);
   ctx.fill();
   if (sprite) {
     ctx.imageSmoothingEnabled = false;
-    // Уменьшаем немного — 0.9 от размера коллизии, чтобы объект был меньше хитбокса
-    const drawSize = o.size * 0.95;
+    const drawSize = o.size * 1.15;
     ctx.drawImage(sprite, o.x - drawSize/2, o.y - drawSize/2, drawSize, drawSize);
-  } else {
-    ctx.fillStyle = '#475569';
-    ctx.fillRect(o.x - o.size/2, o.y - o.size/2, o.size, o.size);
   }
   ctx.restore();
 }
@@ -1849,7 +1759,7 @@ function drawBarricade(b) {
   const sprite = SPRITES.barricade;
   if (sprite) {
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(sprite, b.x - b.r, b.y - b.r, b.r*2, b.r*2);
+    ctx.drawImage(sprite, b.x - b.r*1.15, b.y - b.r*1.15, b.r*2.3, b.r*2.3);
   }
   if (b.hp < b.maxHp) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1902,7 +1812,6 @@ function drawPickup(pk) {
   const r = pk.r * pulse;
   const spriteKey = pk.type === 'health' ? 'health' : pk.type === 'grenade' ? 'grenade' : 'ammo';
   const sprite = SPRITES[spriteKey];
-  // Свечение
   ctx.save();
   ctx.globalAlpha = 0.3;
   ctx.fillStyle = pk.type === 'health' ? '#22c55e' : pk.type === 'grenade' ? '#84cc16' : '#fbbf24';
@@ -1910,7 +1819,7 @@ function drawPickup(pk) {
   ctx.restore();
   if (sprite) {
     ctx.imageSmoothingEnabled = false;
-    const sz = r * 2;
+    const sz = r * 2.2;
     ctx.drawImage(sprite, pk.x - sz/2, pk.y - sz/2, sz, sz);
   }
 }
@@ -1927,14 +1836,10 @@ function draw() {
   ctx.translate(-cam.x, -cam.y);
   ctx.imageSmoothingEnabled = false;
 
-  // Препятствия
   for (const o of game.obstacles) drawObstacle(o);
-  // Баррикады
   for (const b of game.barricades) drawBarricade(b);
-  // Пикапы
   for (const pk of game.pickups) drawPickup(pk);
 
-  // Частицы
   for (const pt of game.particles) {
     if (pt.type === 'laser') {
       const alpha = pt.life / pt.maxLife;
@@ -1949,7 +1854,6 @@ function draw() {
   }
   ctx.globalAlpha = 1;
 
-  // Зомби (пиксель-спрайты)
   for (const z of game.zombies) {
     let alpha = 1;
     if (z.type === 'invisible') {
@@ -1958,33 +1862,28 @@ function draw() {
     }
     ctx.save();
     ctx.globalAlpha = alpha;
-    // Тень
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath(); ctx.ellipse(z.x, z.y + z.r * 0.7, z.r * 0.9, z.r * 0.4, 0, 0, Math.PI*2); ctx.fill();
-    // Спрайт
     const sprite = SPRITES[z.type ? Z_TYPES[z.type].sprite : 'zombie_normal'];
     if (sprite) {
       ctx.save();
       ctx.translate(z.x, z.y);
       ctx.rotate(z.angle + Math.PI/2);
       ctx.imageSmoothingEnabled = false;
-      const size = z.r * 2.8;
+      const size = z.r * 3.2;
       ctx.drawImage(sprite, -size/2, -size/2, size, size);
       ctx.restore();
     }
-    // Вспышка урона
     if (z.hitFlash > 0) {
       ctx.globalAlpha = Math.min(1, z.hitFlash * 6);
       ctx.fillStyle = '#fff';
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = alpha;
+      ctxglobalAlpha = alpha;
     }
-    // Замедление
     if (z.slowMult < 1) {
       ctx.strokeStyle = 'rgba(56,189,248,0.8)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r + 4, 0, Math.PI*2); ctx.stroke();
     }
-    // HP
     if (z.hp < z.maxHp) {
       const w = z.r * 2;
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -2015,18 +1914,14 @@ function draw() {
       ctx.fillStyle = 'rgba(168,85,247,0.3)';
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.5, 0, Math.PI*2); ctx.fill();
     }
-    // Тень
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.beginPath(); ctx.ellipse(b.x, b.y + b.r * 0.7, b.r * 0.9, b.r * 0.4, 0, 0, Math.PI*2); ctx.fill();
-    // Спрайт
     if (SPRITES.boss) {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.angle + Math.PI/2);
-      const size = b.r * 2.6;
-      if (b.state === 'recover') {
-        ctx.filter = 'hue-rotate(270deg) brightness(1.3)';
-      }
+      const size = b.r * 3.1;
+      if (b.state === 'recover') ctx.filter = 'hue-rotate(270deg) brightness(1.3)';
       if (b.hitFlash > 0) ctx.filter = 'brightness(2)';
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(SPRITES.boss, -size/2, -size/2, size, size);
@@ -2035,7 +1930,7 @@ function draw() {
     }
   }
 
-  // Пули (пиксель-спрайты)
+  // Пули
   for (const b of game.bullets) {
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = b.color;
@@ -2043,7 +1938,7 @@ function draw() {
     ctx.globalAlpha = 1;
     const sprite = SPRITES[b.sprite];
     if (sprite) {
-      const sz = b.r * 3;
+      const sz = b.r * 4;
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(Math.atan2(b.vy, b.vx));
@@ -2060,7 +1955,7 @@ function draw() {
     ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill();
   }
 
-  // Игрок (пиксель-спрайт)
+  // Игрок
   const p = game.player;
   if (p) {
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -2070,17 +1965,8 @@ function draw() {
       ctx.translate(p.x, p.y);
       ctx.rotate(p.bodyAngle + Math.PI/2);
       ctx.imageSmoothingEnabled = false;
-      const size = p.r * 3.2;
+      const size = p.r * 3.6;
       ctx.drawImage(SPRITES.player, -size/2, -size/2, size, size);
-      ctx.restore();
-      // Оружие
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.angle);
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(p.r * 0.3, -4, p.r * 1.2, 8);
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(p.r * 1.3, -3, 8, 6);
       ctx.restore();
     }
     if (p.hurtFlash > 0) {
@@ -2089,21 +1975,18 @@ function draw() {
     }
   }
 
-  // Ночь
-  if (game.isNight && p) {
+  // НОЧЬ
+  if (game.isNight) {
     ctx.restore();
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillStyle = 'rgba(0,0,0,0.82)';
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'destination-out';
-    const sx = W/2, sy = H/2;
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.arc(sx, sy, 280, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.beginPath(); ctx.arc(sx, sy, 190, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,1)';
-    ctx.beginPath(); ctx.arc(sx, sy, 120, 0, Math.PI*2); ctx.fill();
+    const maskSize = Math.max(W, H) * 1.6;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(NIGHT_MASK, W/2 - maskSize/2, H/2 - maskSize/2, maskSize, maskSize);
     ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
     ctx.restore();
     return;
   }
@@ -2129,7 +2012,7 @@ function draw() {
     ctx.fillStyle = 'rgba(0,0,0,0.8)';
     ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = game.boss.state === 'recover' ? '#a855f7' : '#ef4444';
-       ctx.fillRect(barX, barY, barW * pct, barH);
+    ctx.fillRect(barX, barY, barW * pct, barH);
     ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
     ctx.strokeRect(barX, barY, barW, barH);
     ctx.fillStyle = '#fff';
