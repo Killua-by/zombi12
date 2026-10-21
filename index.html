@@ -908,6 +908,8 @@ function pickUpgrades() {
 // ========== ЖИЗНЕННЫЙ ЦИКЛ ==========
 function startGame(mapKey, classKey) {
   document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('mapScreen').classList.add('hidden');
+  document.getElementById('mutatorScreen').classList.add('hidden');
   initAudio();
   const world = { w: Math.max(1200, W * 2.0), h: Math.max(1000, H * 1.6) };
   const p = makePlayer(classKey);
@@ -1178,7 +1180,6 @@ function update(dt) {
   p.dashCd = Math.max(0, p.dashCd - dt);
   p.grenadeCd = Math.max(0, p.grenadeCd - dt);
 
-  // Движение / рывок
   if (p.dashTime > 0) {
     p.dashTime -= dt;
     p.x += p.dashDir.x * 900 * dt;
@@ -1200,7 +1201,6 @@ function update(dt) {
 
   updateCamera(dt);
 
-  // Автострельба
   p.fireCd -= dt;
   if (p.fireCd <= 0) {
     let nearest = null, nd = Infinity;
@@ -1227,7 +1227,6 @@ function update(dt) {
     }
   }
 
-  // Пули
   for (let i = game.bullets.length - 1; i >= 0; i--) {
     const b = game.bullets[i];
     b.x += b.vx * dt; b.y += b.vy * dt; b.dist += Math.hypot(b.vx, b.vy) * dt;
@@ -1268,7 +1267,6 @@ function update(dt) {
     if (dead) game.bullets.splice(i, 1);
   }
 
-  // Зомби
   for (let i = game.zombies.length - 1; i >= 0; i--) {
     const z = game.zombies[i];
     if (z.burn > 0) { z.burn -= dt; z.hp -= z.burnDmg * dt; game.damageDealt += z.burnDmg * dt; if (Math.random() < 0.3) spawnParticles(z.x, z.y, 1, '#f97316'); }
@@ -1362,7 +1360,6 @@ function update(dt) {
     }
   }
 
-  // Вражеские снаряды
   for (let i = game.enemyBullets.length - 1; i >= 0; i--) {
     const eb = game.enemyBullets[i];
     if (eb.homing) {
@@ -1380,7 +1377,6 @@ function update(dt) {
     }
   }
 
-  // Пикапы / гранаты
   for (let i = game.pickups.length - 1; i >= 0; i--) {
     const pk = game.pickups[i];
     pk.life -= dt; pk.bob += dt * 4;
@@ -1410,7 +1406,6 @@ function update(dt) {
     if (pk.life <= 0) game.pickups.splice(i, 1);
   }
 
-  // Интерактив
   for (const io of game.interactiveObjects) {
     if (io.uses <= 0) continue;
     if (io.kind === 'turret') {
@@ -1433,7 +1428,6 @@ function update(dt) {
     }
   }
 
-  // Частицы / кровь
   for (let i = game.particles.length - 1; i >= 0; i--) {
     const pt = game.particles[i];
     pt.x += pt.vx * dt; pt.y += pt.vy * dt;
@@ -1448,7 +1442,6 @@ function update(dt) {
 
   game.screenShake *= 0.88;
 
-  // Спавн / конец волны
   if (game.waveActive) {
     if (game.spawnQueue > 0) {
       game.spawnTimer -= dt;
@@ -1460,7 +1453,6 @@ function update(dt) {
     } else if (game.zombies.length === 0) endWave();
   }
 
-  // Таймер волны
   if (game.waveTimer > 0) {
     game.waveTimer -= dt;
     if (game.waveTimer <= 0) {
@@ -1469,7 +1461,6 @@ function update(dt) {
     }
   }
 
-  // Хазарды
   for (let i = game.hazards.length - 1; i >= 0; i--) {
     const h = game.hazards[i];
     h.life -= dt;
@@ -1486,10 +1477,9 @@ function update(dt) {
 
 // ========== ФОН ==========
 function buildBackground() {
-  const bgDPR = 1;
-  bgCanvas.width = Math.floor(game.world.w * bgDPR);
-  bgCanvas.height = Math.floor(game.world.h * bgDPR);
-  bgCtx.setTransform(bgDPR, 0, 0, bgDPR, 0, 0);
+  bgCanvas.width = Math.floor(game.world.w);
+  bgCanvas.height = Math.floor(game.world.h);
+  bgCtx.setTransform(1, 0, 0, 1, 0, 0);
   const m = MAPS[game.mapKey];
   bgCtx.fillStyle = m.ground;
   bgCtx.fillRect(0, 0, game.world.w, game.world.h);
