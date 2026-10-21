@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0a0e14">
 <title>Zombie Survival</title>
+<!-- VCONSOLE ДЛЯ ОТЛАДКИ -->
+<script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+<script>window.vConsole = new window.VConsole();</script>
+
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
   html,body{width:100%;height:100%;overflow:hidden;background:#0a0e14;font-family:system-ui,sans-serif;touch-action:none;overscroll-behavior:none}
@@ -237,8 +241,8 @@ const ZOMBIE_TYPES = {
   kamikaze:  { hp:22,  speed:140, dmg:20, r:11, color:'#dc2626', score:22, kamikaze:true },
   necro:     { hp:55,  speed:35,  dmg:10, r:15, color:'#8b5cf6', score:40, necromancer:true, range:220 },
   crusher:   { hp:120, speed:60,  dmg:20, r:18, color:'#94a3b8', score:35, wallbreaker:true },
-  spider:    { hp:15,  speed:160, dmg:7,  r:9,  color:'#fb7185', score:25 }, // Новый
-  armored:   { hp:150, speed:30,  dmg:12, r:16, color:'#64748b', score:45, dmgReduce:0.5 } // Новый
+  spider:    { hp:15,  speed:160, dmg:7,  r:9,  color:'#fb7185', score:25 },
+  armored:   { hp:150, speed:30,  dmg:12, r:16, color:'#64748b', score:45, dmgReduce:0.5 }
 };
 
 const BOSS_TYPES = [
@@ -248,8 +252,8 @@ const BOSS_TYPES = [
   { name:'Мясник',    color:'#be123c', r:46, speed:55, dmg:14, hpMul:2.2, attacks:['charge','radial','summon','homing'] },
   { name:'Некромант', color:'#8b5cf6', r:44, speed:45, dmg:12, hpMul:2.6, attacks:['summon','radial','homing'] },
   { name:'Мать',      color:'#ec4899', r:40, speed:70, dmg:11, hpMul:1.8, attacks:['summon','spray'], spawner:true },
-  { name:'Кибердемон',color:'#06b6d4', r:40, speed:75, dmg:15, hpMul:2.0, attacks:['spray','charge','homing'] }, // Новый
-  { name:'Слизь',     color:'#84cc16', r:35, speed:40, dmg:8,  hpMul:1.5, attacks:['radial'] }, // Новый
+  { name:'Кибердемон',color:'#06b6d4', r:40, speed:75, dmg:15, hpMul:2.0, attacks:['spray','charge','homing'] },
+  { name:'Слизь',     color:'#84cc16', r:35, speed:40, dmg:8,  hpMul:1.5, attacks:['radial'] },
   { name:'НЕКРОЛОРД', color:'#eab308', r:55, speed:65, dmg:18, hpMul:4.0, attacks:['charge','radial','summon','homing','spray'], final:true }
 ];
 
@@ -274,10 +278,10 @@ const ELITE_AFFIXES = [
 ];
 
 const MAPS = {
-  forest:     { name:'Тёмный лес', desc:'Деревья и поляны', icon:'🌲', ground:'#0a1410', grid:'rgba(74,222,128,0.04)', accent:'#22c55e', obstacleCount:22, obstacleSet:[{type:'tree',weight:4},{type:'rock',weight:2},{type:'bush',weight:3}], price: 0 },
-  industrial: { name:'Завод', desc:'Ящики и бочки',       icon:'🏭', ground:'#0f1014', grid:'rgba(148,163,184,0.05)', accent:'#94a3b8', obstacleCount:26, obstacleSet:[{type:'crate',weight:4},{type:'barrel',weight:3},{type:'machine',weight:2}], price: 0 },
-  desert:     { name:'Пустошь', desc:'Кактусы и кости',   icon:'🏜️', ground:'#1a1410', grid:'rgba(251,191,36,0.04)', accent:'#f59e0b', obstacleCount:20, obstacleSet:[{type:'cactus',weight:4},{type:'rock',weight:3},{type:'bones',weight:2}], price: 500 },
-  city:       { name:'Город', desc:'Машины и асфальт',    icon:'🏙️', ground:'#14161a', grid:'rgba(200,200,200,0.03)', accent:'#cbd5e1', obstacleCount:30, obstacleSet:[{type:'car',weight:4},{type:'lamp',weight:2},{type:'crate',weight:2}], price: 1000 }
+  forest:     { name:'Тёмный лес', desc:'Деревья и поляны', icon:'🌲', ground:'#0a1410', grid:'rgba(74,222,128,0.04)', accent:'#22c55e', price: 0 },
+  industrial: { name:'Завод', desc:'Цеха и ящики',        icon:'🏭', ground:'#0f1014', grid:'rgba(148,163,184,0.05)', accent:'#94a3b8', price: 0 },
+  desert:     { name:'Пустошь', desc:'Руины и кактусы',   icon:'🏜️', ground:'#1a1410', grid:'rgba(251,191,36,0.04)', accent:'#f59e0b', price: 500 },
+  city:       { name:'Город', desc:'Здания и машины',     icon:'🏙️', ground:'#14161a', grid:'rgba(200,200,200,0.03)', accent:'#cbd5e1', price: 1000 }
 };
 
 const PICKUP_TYPES = [
@@ -340,7 +344,7 @@ const UPGRADES = [
   { id:'dashcd', name:'Dash −30%', desc:'Короче кулдаун', rarity:'rare', apply:p => p.dashCdMax *= 0.7 },
   { id:'grenade', name:'+1 граната', desc:'Больше гранат', rarity:'rare', apply:p => p.grenadeMax += 1 },
   { id:'crit2', name:'Крит +15%', desc:'Больше критов', rarity:'rare', apply:p => p.critChance += 0.15 },
-  { id:'dashboom', name:'Взрывной рывок', desc:'Dash наносит урон', rarity:'rare', apply:p => p.dashExplode = true }, // Новый
+  { id:'dashboom', name:'Взрывной рывок', desc:'Dash наносит урон', rarity:'rare', apply:p => p.dashExplode = true },
   { id:'fire', name:'Огненные пули', desc:'Поджигают', rarity:'epic', apply:p => p.elements.fire = true },
   { id:'ice', name:'Ледяные пули', desc:'Замедляют', rarity:'epic', apply:p => p.elements.ice = true },
   { id:'shock', name:'Электро-пули', desc:'Бьют цепочкой', rarity:'epic', apply:p => p.elements.shock = true },
@@ -348,9 +352,9 @@ const UPGRADES = [
   { id:'vamp', name:'Вампиризм', desc:'+2 HP за убийство', rarity:'epic', apply:p => p.vamp += 2 },
   { id:'multi', name:'Мультивыстрел', desc:'+1 пуля', rarity:'epic', apply:p => p.extraPellets += 1 },
   { id:'expl', name:'Разрывные пули', desc:'Пули взрываются', rarity:'epic', apply:p => p.explosive = true },
-  { id:'weapon', name:'Смена оружия', desc:'Новое оружие (рулетка)', rarity:'epic', apply:p => { /* Особый обработчик */ } },
+  { id:'weapon', name:'Смена оружия', desc:'Новое оружие (рулетка)', rarity:'epic', apply:p => {} },
   { id:'shield', name:'Щит', desc:'Поглощает 1 удар / 8 сек', rarity:'epic', apply:p => p.shieldRegen = 8 },
-  { id:'lasereye', name:'Лазерный глаз', desc:'Авто-лазер по врагам', rarity:'epic', apply:p => p.laserEye = true }, // Новый
+  { id:'lasereye', name:'Лазерный глаз', desc:'Авто-лазер по врагам', rarity:'epic', apply:p => p.laserEye = true },
   { id:'curse_power', name:'Кровавая сделка', desc:'+50% урона, −25% HP', rarity:'legend', minWave:20, apply:p => { p.dmgMult *= 1.5; p.maxHp = Math.floor(p.maxHp * 0.75); p.hp = Math.min(p.hp, p.maxHp); } },
   { id:'curse_speed', name:'Адреналин', desc:'+30% скорости, −15% HP', rarity:'legend', minWave:20, apply:p => { p.speed *= 1.3; p.maxHp = Math.floor(p.maxHp * 0.85); p.hp = Math.min(p.hp, p.maxHp); } }
 ];
@@ -670,51 +674,72 @@ function moveZombieAroundObstacles(z, dx, dy, speed, dt) {
   z.x = clamp(z.x, z.r, game.world.w - z.r);
   z.y = clamp(z.y, z.r, game.world.h - z.r);
 }
-// ========== ГЕНЕРАЦИЯ МИРА ==========
-function pickWeighted(set) {
-  const total = set.reduce((s, o) => s+o.weight, 0);
-  let r = Math.random()*total;
-  for (const o of set) { r -= o.weight; if (r <= 0) return o.type; }
-  return set[0].type;
-}
 
+// ========== ГЕНЕРАЦИЯ ПРЕДУМАННЫХ КАРТ ==========
 function generateObstacles(mapKey, world) {
-  const m = MAPS[mapKey], obstacles = [];
+  const obstacles = [];
   const cx = world.w/2, cy = world.h/2;
-  
-  for (let i = 0; i < m.obstacleCount; i++) {
-    for (let attempt = 0; attempt < 60; attempt++) {
-      const type = pickWeighted(m.obstacleSet);
-      let ob;
-      if (type === 'tree') { const r = 30 + Math.random()*16; ob = { shape:'circle', kind:'tree', r, x: 90+Math.random()*(world.w-180), y: 90+Math.random()*(world.h-180), seed: Math.random()*100, hp: 30, maxHp: 30 }; }
-      else if (type === 'rock') { const r = 24+Math.random()*16; ob = { shape:'circle', kind:'rock', r, x: 90+Math.random()*(world.w-180), y: 90+Math.random()*(world.h-180), seed: Math.random()*100 }; }
-      else if (type === 'bush') { const r = 16+Math.random()*8; ob = { shape:'circle', kind:'bush', r, x: 90+Math.random()*(world.w-180), y: 90+Math.random()*(world.h-180) }; }
-      else if (type === 'crate') { const s = 40+Math.random()*15; ob = { shape:'rect', kind:'crate', w:s, h:s, x: 90+Math.random()*(world.w-180-s), y: 90+Math.random()*(world.h-180-s), hp: 25, maxHp: 25 }; }
-      else if (type === 'barrel') { const r = 16+Math.random()*8; ob = { shape:'circle', kind:'barrel', r, x: 90+Math.random()*(world.w-180), y: 90+Math.random()*(world.h-180), hp: 8, maxHp: 8, fuel: true }; }
-      else if (type === 'machine') { const w = 60+Math.random()*25, h = 50+Math.random()*20; ob = { shape:'rect', kind:'machine', w, h, x: 90+Math.random()*(world.w-180-w), y: 90+Math.random()*(world.h-180-h), hp: 60, maxHp: 60 }; }
-      else if (type === 'cactus') { const r = 18+Math.random()*10; ob = { shape:'circle', kind:'cactus', r, x: 90+Math.random()*(world.w-180), y: 90+Math.random()*(world.h-180), seed: Math.random()*100, hp: 20, maxHp: 20 }; }
-      else if (type === 'bones') { const r = 22+Math.random()*10; ob = { shape:'circle', kind:'bones', r, x: 90+Math.random()*(world.w-180), y: 90+Math.random()*(world.h-180), seed: Math.random()*100 }; }
-      else if (type === 'car') { const w = 70+Math.random()*20, h = 40+Math.random()*10; ob = { shape:'rect', kind:'car', w, h, x: 90+Math.random()*(world.w-180-w), y: 90+Math.random()*(world.h-180-h), hp: 80, maxHp: 80 }; }
-      else if (type === 'lamp') { const r = 8; ob = { shape:'circle', kind:'lamp', r, x: 90+Math.random()*(world.w-180), y: 90+Math.random()*(world.h-180) }; }
-      
-      const ox = ob.shape === 'rect' ? ob.x + ob.w/2 : ob.x;
-      const oy = ob.shape === 'rect' ? ob.y + ob.h/2 : ob.y;
-      const rT = ob.shape === 'rect' ? Math.max(ob.w, ob.h)/2 : ob.r;
-      
-      if (Math.hypot(cx-ox, cy-oy) < rT + 180) continue;
-      let ok = true;
-      for (const o of obstacles) {
-        const oox = o.shape === 'rect' ? o.x + o.w/2 : o.x;
-        const ooy = o.shape === 'rect' ? o.y + o.h/2 : o.y;
-        const rO = o.shape === 'rect' ? Math.max(o.w, o.h)/2 : o.r;
-        if (Math.hypot(oox-ox, ooy-oy) < rO + rT + 50) { ok = false; break; }
+  const add = (ob) => {
+    const ox = ob.shape === 'rect' ? ob.x + ob.w/2 : ob.x;
+    const oy = ob.shape === 'rect' ? ob.y + ob.h/2 : ob.y;
+    const rT = ob.shape === 'rect' ? Math.max(ob.w, ob.h)/2 : ob.r;
+    if (Math.hypot(cx-ox, cy-oy) < rT + 150) return false;
+    for (const o of obstacles) {
+      const oox = o.shape === 'rect' ? o.x + o.w/2 : o.x;
+      const ooy = o.shape === 'rect' ? o.y + o.h/2 : o.y;
+      const rO = o.shape === 'rect' ? Math.max(o.w, o.h)/2 : o.r;
+      if (Math.hypot(oox-ox, ooy-oy) < rO + rT + 40) return false;
+    }
+    obstacles.push(ob); return true;
+  };
+
+  if (mapKey === 'city') {
+    // Кварталы зданий
+    const bx = [100, 400, 700, 1000];
+    const by = [100, 400, 700, 1000];
+    for (let x of bx) {
+      for (let y of by) {
+        if (Math.random() < 0.7) {
+          add({ shape:'rect', kind:'building', w: 120 + Math.random()*60, h: 100 + Math.random()*60, x: x + Math.random()*40, y: y + Math.random()*40, hp: 200, maxHp: 200 });
+        }
       }
-      if (ok) { obstacles.push(ob); break; }
+    }
+    // Машины на улицах
+    for (let i = 0; i < 10; i++) {
+      add({ shape:'rect', kind:'car', w: 60, h: 30, x: 200 + Math.random()*800, y: 200 + Math.random()*800, hp: 60, maxHp: 60 });
+    }
+  } else if (mapKey === 'forest') {
+    // Большие поляны и плотный лес по краям
+    for (let i = 0; i < 30; i++) {
+      add({ shape:'circle', kind:'tree', r: 25 + Math.random()*15, x: Math.random()*world.w, y: Math.random()*world.h, seed: Math.random()*100, hp: 30, maxHp: 30 });
+    }
+    for (let i = 0; i < 15; i++) {
+      add({ shape:'circle', kind:'bush', r: 15 + Math.random()*10, x: Math.random()*world.w, y: Math.random()*world.h, hp: 10, maxHp: 10 });
+    }
+  } else if (mapKey === 'desert') {
+    // Руины в центре и кактусы
+    add({ shape:'rect', kind:'ruins', w: 150, h: 100, x: world.w/2 - 150, y: world.h/2 - 100, hp: 100, maxHp: 100 });
+    add({ shape:'rect', kind:'ruins', w: 100, h: 120, x: world.w/2 + 50, y: world.h/2 + 20, hp: 100, maxHp: 100 });
+    for (let i = 0; i < 20; i++) {
+      add({ shape:'circle', kind:'cactus', r: 15 + Math.random()*10, x: Math.random()*world.w, y: Math.random()*world.h, seed: Math.random()*100, hp: 20, maxHp: 20 });
+    }
+    for (let i = 0; i < 10; i++) {
+      add({ shape:'circle', kind:'rock', r: 20 + Math.random()*20, x: Math.random()*world.w, y: Math.random()*world.h, seed: Math.random()*100 });
+    }
+  } else if (mapKey === 'industrial') {
+    // Ряды станков/машин
+    for (let i = 0; i < 4; i++) {
+      add({ shape:'rect', kind:'machine', w: 120, h: 80, x: 200 + i*250, y: 150, hp: 80, maxHp: 80 });
+      add({ shape:'rect', kind:'machine', w: 120, h: 80, x: 200 + i*250, y: 600, hp: 80, maxHp: 80 });
+    }
+    for (let i = 0; i < 15; i++) {
+      add({ shape:'circle', kind:'barrel', r: 15 + Math.random()*5, x: 100 + Math.random()*(world.w-200), y: 100 + Math.random()*(world.h-200), hp: 8, maxHp: 8, fuel: true });
     }
   }
-  
+
+  // Аптечки и патроны
   const io = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     let px, py, valid = false;
     for(let a=0; a<20; a++) {
       px = 100 + Math.random()*(world.w-200);
@@ -723,7 +748,7 @@ function generateObstacles(mapKey, world) {
     }
     if (valid) io.push({ kind:'ammo', x: px, y: py, r: 12, uses: 1 });
   }
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     let px, py, valid = false;
     for(let a=0; a<20; a++) {
       px = 100 + Math.random()*(world.w-200);
@@ -766,8 +791,7 @@ function buildBackground() {
   bgCtx.strokeStyle = m.accent + '50'; bgCtx.lineWidth = 4;
   bgCtx.strokeRect(0, 0, game.world.w, game.world.h);
 }
-
-// ========== СПАВН ==========
+ // ========== СПАВН ==========
 function spawnZombie() {
   if (game.wave >= 18 && Math.random() < 0.12) { spawnPair(); return; }
   const mods = game.activeMods.map(m => m.id);
@@ -795,7 +819,7 @@ function spawnZombie() {
   }
   const hpScale = 1 + (game.wave-1)*0.18;
   let hp = t.hp*hpScale + game.wave*2;
-  if (game.wave > 15) hp += (game.wave - 15) * 15; // +15 HP после 15 волны
+  if (game.wave > 15) hp += (game.wave - 15) * 15; // Пункт 4: +15 HP после 15 волны
   let speed = t.speed * (1 + (game.wave-1)*0.03);
   if (mods.includes('berserk')) speed *= 1.35;
   if (mods.includes('armored')) hp *= 1.4;
@@ -871,11 +895,14 @@ function startGame(mapKey, classKey) {
   if (hasMut('oneshot')) { p.hp = 1; p.maxHp = 1; p.dmgMult *= 5; }
   
   const obstacles = generateObstacles(mapKey, world);
+  // Сохраняем копию карты для восстановления после босса
+  const originalObstacles = JSON.parse(JSON.stringify(obstacles));
+  
   const decorations = generateDecorations(mapKey, world);
   const patches = generatePatches(world);
 
   Object.assign(game, {
-    player: p, world, mapKey, obstacles, decorations, patches,
+    player: p, world, mapKey, obstacles, originalObstacles, decorations, patches,
     zombies: [], bullets: [], enemyBullets: [], particles: [], pickups: [],
     hazards: [], bloodDecals: [], bosses: [], activeMods: [], weather: null, weatherTimer: 0,
     wave: 1, score: 0, kills: 0, damageDealt: 0, bestCombo: 0,
@@ -883,7 +910,7 @@ function startGame(mapKey, classKey) {
     spawnQueue: 0, spawnTimer: 0, waveActive: false,
     running: true, paused: false, lastTime: 0, screenShake: 0, hitStop: 0,
     nextId: 1, waveBanner: 0, waveTimer: 0, startTime: performance.now(),
-    _hitTimer: 0, _lastHitDir: 0
+    _hitTimer: 0, _lastHitDir: 0, _isLoaded: false
   });
   camera.x = clamp(p.x - W/2, 0, world.w - W);
   camera.y = clamp(p.y - H/2, 0, world.h - H);
@@ -911,13 +938,13 @@ function startWave() {
     const bossCount = game.wave >= 35 ? 3 : game.wave >= 25 ? 2 : 1;
     game.spawnQueue = 3 + Math.floor(game.wave / 3);
     spawnBosses(bossCount);
-    game.waveTimer = 0; // Пункт 3: Убрать время на боссе
+    game.waveTimer = 0; // Убрать время на боссе
   } else {
     let q = 5 + game.wave * 2;
     if (hasMod('horde')) q = Math.floor(q * 1.5);
     game.spawnQueue = q;
     if (game.wave >= 12 && game.wave % 3 === 0) spawnMiniBoss();
-    game.waveTimer = 45; // Пункт 2: 45 секунд
+    game.waveTimer = 45; // 45 секунд
   }
   game.spawnTimer = 0.6;
   musicTick(game.wave);
@@ -926,7 +953,6 @@ function startWave() {
 function endWave() {
   game.waveActive = false;
   game.score += 100 + game.wave * 10;
-  // Пункт 11: Уменьшено получение крови
   const bloodGain = Math.floor(game.score / 150) + Math.floor(game.kills / 2);
   meta.blood += bloodGain;
   meta.kills += game.kills;
@@ -940,13 +966,21 @@ function endWave() {
     }
   }
   saveMeta(); checkAchievements();
+  
+  // ВОССТАНОВЛЕНИЕ КАРТЫ ПОСЛЕ БОССА
+  if (game.wave % 5 === 0) {
+    game.obstacles = JSON.parse(JSON.stringify(game.originalObstacles));
+    spawnParticles(game.player.x, game.player.y, 30, '#fbbf24');
+    toast('Карта восстановлена!');
+  }
+
   game.running = false;
   showUpgrades();
 }
 
 function gameOver(victory) {
   game.running = false;
-  localStorage.removeItem('zs_save'); // Удаляем сейв при смерти
+  localStorage.removeItem('zs_save');
   document.getElementById('continueBtn').style.display = 'none';
   const p = game.player;
   const timeSec = Math.floor((performance.now() - game.startTime) / 1000);
@@ -975,13 +1009,14 @@ function restartGame() {
   showMainMenu();
 }
 
-// ========== СОХРАНЕНИЕ (Пункт 5) ==========
+// ========== СОХРАНЕНИЕ ==========
 function saveGameState() {
   if (!game.running) return;
   const saveData = {
     wave: game.wave, score: game.score, kills: game.kills, damageDealt: game.damageDealt,
     player: game.player, mapKey: game.mapKey, world: game.world,
-    obstacles: game.obstacles, decorations: game.decorations, patches: game.patches,
+    obstacles: game.obstacles, originalObstacles: game.originalObstacles, 
+    decorations: game.decorations, patches: game.patches,
     zombies: game.zombies, bosses: game.bosses, pickups: game.pickups, interactiveObjects: game.interactiveObjects,
     activeMods: game.activeMods, selectedMutators: game.selectedMutators,
     waveTimer: game.waveTimer, weather: game.weather, weatherTimer: game.weatherTimer,
@@ -1008,7 +1043,6 @@ function loadGameState() {
     camera.x = clamp(game.player.x - W/2, 0, game.world.w - W);
     camera.y = clamp(game.player.y - H/2, 0, game.world.h - H);
     
-    // Восстанавливаем классы/функции для игрока
     game.player = Object.assign(makePlayer(game.player.class), game.player);
     buildBackground();
     toast('Игра загружена');
@@ -1046,10 +1080,6 @@ function startBossAttack(b, p) {
       game.enemyBullets.push({ x:b.x, y:b.y, vx:Math.cos(ang)*280, vy:Math.sin(ang)*280, dmg:7, color:b.color, dist:0, maxDist:600 });
     }
     b.atkCd = b.enraged ? 1.2 : 2;
-  } else if (attack === 'teleport') {
-    b.x = clamp(p.x + (Math.random()-0.5) * 200, b.r + 20, game.world.w - b.r - 20);
-    b.y = clamp(p.y + (Math.random()-0.5) * 200, b.r + 20, game.world.h - b.r - 20);
-    pushOutOfObstacles(b, game.obstacles); spawnParticles(b.x, b.y, 25, b.color); b.atkCd = 2;
   } else if (attack === 'homing') {
     for (let i = 0; i < (b.enraged ? 5 : 3); i++) {
       const ang = Math.random() * Math.PI * 2;
@@ -1071,6 +1101,19 @@ function explodeAt(x, y, radius, dmg, color) {
     if (z.isBoss && !z.miniBoss) continue;
     const d = Math.hypot(z.x - x, z.y - y);
     if (d < radius) { z.hp -= dmg * (1 - d / radius * 0.5); z.hitFlash = 0.1; game.damageDealt += dmg; }
+  }
+  // Ломаем препятствия взрывом
+  for (const o of game.obstacles) {
+    if (o.destroyed) continue;
+    const ox = o.shape === 'rect' ? o.x + o.w/2 : o.x;
+    const oy = o.shape === 'rect' ? o.y + o.h/2 : o.y;
+    if (Math.hypot(ox - x, oy - y) < radius + 20) {
+       o.hp -= dmg;
+       if (o.hp <= 0) {
+          o.destroyed = true;
+          spawnParticles(ox, oy, 20, '#9ca3af');
+       }
+    }
   }
   spawnParticles(x, y, 20, color || '#f97316');
   game.screenShake = Math.min(game.screenShake + 8, 16);
@@ -1153,10 +1196,28 @@ function updateBoss(b, dt, p) {
     b.stateTimer -= dt;
     b.x += b.chargeDir.x * 340 * dt * spdMul;
     b.y += b.chargeDir.y * 340 * dt * spdMul;
-    if (!b.flying && collidesAnyObstacle(b.x, b.y, b.r, game.obstacles)) {
-      pushOutOfObstacles(b, game.obstacles); b.state = 'idle'; b.atkCd = b.enraged ? 0.8 : 1.5;
+    
+    // БОСС ЛОМАЕТ ПРЕПЯТСТВИЯ
+    let hitObstacle = false;
+    for (const o of game.obstacles) {
+      if (o.destroyed) continue;
+      if (collidesAnyObstacle(b.x, b.y, b.r, [o])) {
+         o.hp -= 50 * dt; // Наносит урон зданию
+         if (o.hp <= 0) {
+            o.destroyed = true;
+            spawnParticles(o.shape === 'rect' ? o.x+o.w/2 : o.x, o.shape === 'rect' ? o.y+o.h/2 : o.y, 25, '#9ca3af');
+            game.screenShake = 15;
+            sfxExplosion();
+         }
+         hitObstacle = true;
+      }
+    }
+    
+    if (hitObstacle) {
+      b.state = 'idle'; b.atkCd = b.enraged ? 0.8 : 1.5;
       spawnParticles(b.x, b.y, 15, '#9ca3af'); game.screenShake = Math.min(game.screenShake + 6, 14);
     }
+    
     if (Math.hypot(b.x - p.x, b.y - p.y) < b.r + p.r) {
       hurtPlayer(b.dmg * 1.2, b.x, b.y);
       b.state = 'idle'; b.atkCd = b.enraged ? 0.8 : 1.5;
@@ -1164,20 +1225,6 @@ function updateBoss(b, dt, p) {
     if (b.stateTimer <= 0) { b.state = 'idle'; b.atkCd = b.enraged ? 0.8 : 1.5; }
     b.x = clamp(b.x, b.r, game.world.w - b.r);
     b.y = clamp(b.y, b.r, game.world.h - b.r);
-  }
-  
-  // Пункт 6: Фикс застревания босса
-  if (b.state === 'idle' && Math.hypot(p.x - b.x, p.y - b.y) > b.r + p.r + 15) {
-    b.stuckTimer = (b.stuckTimer || 0) + dt;
-    if (b.stuckTimer > 1.5) {
-      b.x = clamp(p.x + rand(-150, 150), b.r + 20, game.world.w - b.r - 20);
-      b.y = clamp(p.y + rand(-150, 150), b.r + 20, game.world.h - b.r - 20);
-      pushOutOfObstacles(b, game.obstacles);
-      spawnParticles(b.x, b.y, 25, b.color);
-      b.stuckTimer = 0;
-    }
-  } else {
-    b.stuckTimer = 0;
   }
 }
 
@@ -1366,7 +1413,6 @@ function update(dt) {
         game.screenShake = 20; game.hitStop = 0.15;
         for (let k = 0; k < (z.final ? 10 : 3); k++)
           game.pickups.push({ kind: 'hp', x: z.x + rand(-60,60), y: z.y + rand(-60,60), r: 9, life: 20, bob: Math.random()*6.28 });
-        // Пункт 9: Гарантированные гранаты с босса
         for (let k = 0; k < (z.final ? 5 : 2); k++)
           game.pickups.push({ kind: 'grenade', x: z.x + rand(-40,40), y: z.y + rand(-40,40), r: 7, life: 20, bob: Math.random()*6.28 });
           
@@ -1502,7 +1548,21 @@ function roundRect(x, y, w, h, r) {
 }
 
 function drawObstacle(o) {
-  if (o.destroyed) return;
+  if (o.destroyed) {
+    // Рисуем обломки разрушенного объекта
+    if (o.shape === 'rect') {
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = '#475569';
+      for(let i=0; i<4; i++) {
+         ctx.beginPath();
+         ctx.arc(o.x + Math.random()*o.w, o.y + Math.random()*o.h, Math.random()*10 + 5, 0, Math.PI*2);
+         ctx.fill();
+      }
+    }
+    return;
+  }
+  
   const cx = o.shape === 'rect' ? o.x + o.w/2 : o.x;
   const cy = o.shape === 'rect' ? o.y + o.h/2 : o.y;
   const r = o.shape === 'rect' ? Math.max(o.w, o.h) : o.r;
@@ -1571,8 +1631,6 @@ function drawObstacle(o) {
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.strokeRect(o.x+1, o.y+1, o.w-2, o.h-2);
     ctx.fillStyle = 'rgba(15,23,42,0.7)';
     for (let i = 0; i < 4; i++) ctx.fillRect(o.x+8, o.y+10+i*12, o.w-16, 6);
-    ctx.fillStyle = '#4ade80'; ctx.beginPath(); ctx.arc(o.x+o.w-12, o.y+12, 3, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(o.x+o.w-12, o.y+22, 3, 0, Math.PI*2); ctx.fill();
   } else if (o.kind === 'cactus') {
     const g = ctx.createLinearGradient(o.x - o.r*0.5, o.y, o.x + o.r*0.5, o.y);
     g.addColorStop(0, '#166534'); g.addColorStop(0.5, '#22c55e'); g.addColorStop(1, '#15803d');
@@ -1593,20 +1651,35 @@ function drawObstacle(o) {
     ctx.arc(o.x + o.r*0.2, o.y - o.r*0.1, o.r*0.13, 0, Math.PI*2);
     ctx.fill();
     ctx.fillRect(o.x - o.r*0.35, o.y + o.r*0.2, o.r*0.7, o.r*0.15);
+  } else if (o.kind === 'building') {
+    // НОВОЕ: Здание
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.fillStyle = '#334155';
+    for (let x = o.x + 10; x < o.x + o.w - 10; x += 20) {
+      for (let y = o.y + 10; y < o.y + o.h - 10; y += 20) {
+        ctx.fillRect(x, y, 12, 12);
+      }
+    }
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4; ctx.strokeRect(o.x, o.y, o.w, o.h);
+  } else if (o.kind === 'ruins') {
+    // НОВОЕ: Руины
+    ctx.fillStyle = '#78716c'; ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.fillStyle = '#44403c';
+    for(let i=0; i<6; i++) { ctx.fillRect(o.x + Math.random()*o.w, o.y + Math.random()*o.h, 15, 15); }
+    ctx.strokeStyle = '#292524'; ctx.lineWidth = 3; ctx.strokeRect(o.x, o.y, o.w, o.h);
   } else if (o.kind === 'car') {
-    const g = ctx.createLinearGradient(o.x, o.y, o.x, o.y + o.h);
-    g.addColorStop(0, '#64748b'); g.addColorStop(1, '#334155');
-    ctx.fillStyle = g; ctx.fillRect(o.x, o.y, o.w, o.h);
-    ctx.fillStyle = '#1e293b'; ctx.fillRect(o.x + o.w*0.2, o.y + o.h*0.2, o.w*0.6, o.h*0.6);
-    ctx.fillStyle = '#94a3b8'; ctx.fillRect(o.x + 5, o.y + 5, 10, o.h - 10); ctx.fillRect(o.x + o.w - 15, o.y + 5, 10, o.h - 10);
+    // НОВОЕ: Машина
+    ctx.fillStyle = '#64748b'; ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(o.x + o.w*0.2, o.y + o.h*0.15, o.w*0.6, o.h*0.7);
+    ctx.fillStyle = '#94a3b8'; ctx.fillRect(o.x + 5, o.y + 5, 8, o.h - 10); ctx.fillRect(o.x + o.w - 13, o.y + 5, 8, o.h - 10);
   } else if (o.kind === 'lamp') {
     ctx.fillStyle = '#475569'; ctx.fillRect(o.x - 3, o.y - o.r*2, 6, o.r*2);
     ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(o.x, o.y - o.r*2, o.r*0.8, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = 'rgba(253,224,71,0.2)'; ctx.beginPath(); ctx.arc(o.x, o.y - o.r*2, o.r*4, 0, Math.PI*2); ctx.fill();
   }
 
-  if (o.hp !== undefined && o.maxHp && o.hp > 0 && o.hp / o.maxHp < 0.6) {
-    ctx.strokeStyle = `rgba(0,0,0,${1 - o.hp/o.maxHp})`; ctx.lineWidth = 1.5;
+  if (o.hp !== undefined && o.maxHp && o.hp > 0 && o.hp / o.maxHp < 0.8) {
+    ctx.strokeStyle = `rgba(0,0,0,${1 - o.hp/o.maxHp})`; ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(cx - r*0.4, cy - r*0.3); ctx.lineTo(cx + r*0.1, cy + r*0.1); ctx.lineTo(cx - r*0.2, cy + r*0.4);
     ctx.stroke();
@@ -1859,7 +1932,6 @@ function drawBoss(b) {
   ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
   ctx.strokeStyle = '#0a0e14'; ctx.lineWidth = 3; ctx.stroke();
 
-  // Слизь - пузыри
   if (b.name === 'Слизь') {
      for(let i=0; i<5; i++){
         ctx.fillStyle = 'rgba(132,204,22,0.6)';
@@ -1928,6 +2000,7 @@ function drawHUD() {
   const p = game.player;
   const w = WEAPONS[p.weapon];
 
+  // HP Bar
   const barW = 140, barH = 14;
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
   roundRect(16, 16, barW, barH, 7); ctx.fill();
@@ -1938,24 +2011,21 @@ function drawHUD() {
   ctx.fillStyle = '#e6edf3'; ctx.textAlign = 'left';
   ctx.fillText(`${Math.ceil(p.hp)} / ${p.maxHp}`, 16 + barW + 8, 28);
 
-  // Кнопка паузы
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.beginPath(); ctx.arc(W - 36, 36, 18, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#e6edf3';
-  ctx.fillRect(W - 41, 30, 4, 12); ctx.fillRect(W - 33, 30, 4, 12);
-
+  // Wave
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.fillStyle = CLASSES[p.class].color;
   let waveStr = `ВОЛНА ${game.wave}${game.wave % 5 === 0 ? ' 👑' : ''}`;
   if (game.waveTimer > 0) waveStr += `  ⏱ ${Math.ceil(game.waveTimer)}`;
   ctx.fillText(waveStr, 16, 62);
 
+  // Combo
   if (game.comboMult > 1) {
     ctx.font = 'bold 18px system-ui';
     ctx.fillStyle = '#fbbf24';
     ctx.fillText(`×${game.comboMult} КОМБО`, 16, 84);
   }
 
+  // Info
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = '#9ca3af';
   ctx.fillText(`Врагов: ${game.zombies.length + game.spawnQueue}`, 16, 104);
@@ -1968,16 +2038,24 @@ function drawHUD() {
   ctx.fillStyle = '#fbbf24';
   ctx.fillText(`💣 x${p.grenades}`, 16, H - 30);
 
+  // Правый блок (Очки, Кровь)
   ctx.textAlign = 'right';
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.fillStyle = '#e6edf3';
-  ctx.fillText(`Очки: ${game.score}`, W - 60, 62);
+  ctx.fillText(`Очки: ${game.score}`, W - 16, 30);
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = '#9ca3af';
-  ctx.fillText(`Убито: ${game.kills}`, W - 60, 80);
-  ctx.fillText(`Кровь: ${meta.blood}`, W - 60, 98);
+  ctx.fillText(`Убито: ${game.kills}`, W - 16, 50);
+  ctx.fillText(`Кровь: ${meta.blood}`, W - 16, 70);
   ctx.textAlign = 'left';
 
+  // Кнопка паузы (визуально)
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.beginPath(); ctx.arc(W - 36, 100, 18, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#e6edf3';
+  ctx.fillRect(W - 41, 94, 4, 12); ctx.fillRect(W - 33, 94, 4, 12);
+
+  // Боссы
   if (game.bosses.length > 0) {
     const bw = Math.min(320, W * 0.7), bx = (W - bw) / 2;
     for (let i = 0; i < game.bosses.length; i++) {
@@ -1996,6 +2074,7 @@ function drawHUD() {
     }
   }
 
+  // Баннер
   if (game.waveBanner > 0) {
     const alpha = Math.min(1, game.waveBanner);
     ctx.globalAlpha = alpha;
@@ -2017,12 +2096,14 @@ function drawHUD() {
 
 function drawMiniMap() {
   const mmW = 110, mmH = 110;
-  const mmX = W - mmW - 12, mmY = 60;
+  // Миникарта сдвинута вниз и влево, чтобы не наезжать на текст
+  const mmX = W - mmW - 12, mmY = 130; 
   ctx.fillStyle = 'rgba(10,14,20,0.75)';
   roundRect(mmX, mmY, mmW, mmH, 6); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
   roundRect(mmX, mmY, mmW, mmH, 6); ctx.stroke();
   const sx = mmW / game.world.w, sy = mmH / game.world.h;
+  
   for (const o of game.obstacles) {
     if (o.destroyed) continue;
     ctx.fillStyle = 'rgba(100,116,139,0.6)';
@@ -2516,6 +2597,22 @@ function pickUpgrades() {
   }
   return result;
 }
+
+// ========== ДОБАВЛЯЕМ КНОПКУ ПАУЗЫ ==========
+canvas.addEventListener('touchstart', e => {
+  const t = e.changedTouches[0];
+  // Если тапнули в зону кнопки паузы
+  if (game.running && Math.hypot(t.clientX - (W - 36), t.clientY - 100) < 30) {
+    togglePause();
+    e.preventDefault();
+  }
+}, { passive: false });
+canvas.addEventListener('mousedown', e => {
+  if (game.running && Math.hypot(e.clientX - (W - 36), e.clientY - 100) < 30) {
+    togglePause();
+    e.preventDefault();
+  }
+});
 
 // ========== ЦИКЛ ==========
 function loop(ts) {
