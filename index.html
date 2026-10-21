@@ -175,7 +175,7 @@ function resize() {
   ctx.scale(DPR, DPR);
   if(game.player) buildBackground();
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize);
 
 const settings = Object.assign({ sound: true, vibe: true, joySize: 60 }, JSON.parse(localStorage.getItem('zs_settings') || '{}'));
 function saveSettings() { localStorage.setItem('zs_settings', JSON.stringify(settings)); }
