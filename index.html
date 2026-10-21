@@ -111,7 +111,6 @@ const ZOMBIE_TYPES = {
   exploder: { hp:26,  speed:80,  dmg:12, r:12, color:'#f97316', score:20, explodes:true, explosionRadius:80 }
 };
 
-// Урон боссов урезан примерно в 2 раза
 const BOSS_TYPES = [
   { name:'Громила', color:'#dc2626', r:38, speed:60, dmg:12, hpMul:1.0, attacks:['charge','summon'] },
   { name:'Чумной',  color:'#16a34a', r:42, speed:50, dmg:10, hpMul:1.3, attacks:['radial','spray'] },
@@ -119,34 +118,42 @@ const BOSS_TYPES = [
   { name:'Мясник',  color:'#be123c', r:46, speed:55, dmg:14, hpMul:2.2, attacks:['charge','radial','summon','homing'] }
 ];
 
+const WAVE_MODS = [
+  { id:'berserk',   name:'Берсерк',      desc:'Зомби +35% скорости' },
+  { id:'armored',   name:'Броня',        desc:'Зомби +40% HP' },
+  { id:'horde',     name:'Орда',         desc:'+50% зомби в волне' },
+  { id:'fog',       name:'Туман',        desc:'Ограниченная видимость' },
+  { id:'frenzy',    name:'Бешенство',    desc:'Зомби бьют в 2 раза чаще' },
+  { id:'regen',     name:'Регенерация',  desc:'Зомби лечатся 2% HP/сек' },
+  { id:'explosive', name:'Нестабильные', desc:'Все зомби взрываются при смерти' },
+  { id:'swarm',     name:'Рой',          desc:'Быстрые зомби спавнятся чаще' }
+];
+
+const ELITE_AFFIXES = [
+  { id:'armored',   color:'#94a3b8', hpMult:2.2, speedMult:0.8,  name:'Бронированный' },
+  { id:'swift',     color:'#facc15', hpMult:0.7, speedMult:1.7,  name:'Стремительный' },
+  { id:'vampiric',  color:'#dc2626', hpMult:1.4, speedMult:1.0,  name:'Вампир',       regen:0.03 },
+  { id:'explosive', color:'#f97316', hpMult:1.0, speedMult:1.0,  name:'Нестабильный', explodes:true },
+  { id:'shielded',  color:'#3b82f6', hpMult:1.3, speedMult:1.0,  name:'Щитоносец',    dmgReduce:0.4 },
+  { id:'toxic',     color:'#22c55e', hpMult:1.0, speedMult:1.0,  name:'Токсичный',    leavesPoison:true }
+];
+
 const MAPS = {
   forest: {
-    name: 'Тёмный лес',
-    desc: 'Деревья, камни и мшистые поляны',
-    icon: '🌲',
-    ground: '#0a1410',
-    grid: 'rgba(74,222,128,0.04)',
-    accent: '#22c55e',
+    name: 'Тёмный лес', desc: 'Деревья, камни и мшистые поляны', icon: '🌲',
+    ground: '#0a1410', grid: 'rgba(74,222,128,0.04)', accent: '#22c55e',
     obstacleCount: 14,
     obstacleSet: [{type:'tree',weight:3},{type:'rock',weight:2},{type:'bush',weight:2}]
   },
   industrial: {
-    name: 'Заброшенный завод',
-    desc: 'Ржавые ящики, бочки и машины',
-    icon: '🏭',
-    ground: '#0f1014',
-    grid: 'rgba(148,163,184,0.05)',
-    accent: '#94a3b8',
+    name: 'Заброшенный завод', desc: 'Ржавые ящики, бочки и машины', icon: '🏭',
+    ground: '#0f1014', grid: 'rgba(148,163,184,0.05)', accent: '#94a3b8',
     obstacleCount: 16,
     obstacleSet: [{type:'crate',weight:3},{type:'barrel',weight:3},{type:'machine',weight:1}]
   },
   desert: {
-    name: 'Пустошь',
-    desc: 'Кактусы, кости и выжженный песок',
-    icon: '🏜️',
-    ground: '#1a1410',
-    grid: 'rgba(251,191,36,0.04)',
-    accent: '#f59e0b',
+    name: 'Пустошь', desc: 'Кактусы, кости и выжженный песок', icon: '🏜️',
+    ground: '#1a1410', grid: 'rgba(251,191,36,0.04)', accent: '#f59e0b',
     obstacleCount: 12,
     obstacleSet: [{type:'cactus',weight:3},{type:'rock',weight:2},{type:'bones',weight:2}]
   }
@@ -172,7 +179,11 @@ const UPGRADES = [
   { id:'weapon', name:'Смена оружия',        desc:'Новое случайное оружие',           rarity:'epic',   apply:p => {
     const keys = Object.keys(WEAPONS).filter(k => k !== p.weapon);
     p.weapon = keys[Math.floor(Math.random() * keys.length)];
-  }}
+  }},
+  // Проклятия — только с 20-й волны
+  { id:'curse_power', name:'Кровавая сделка', desc:'+50% урона, но −25% макс HP', rarity:'epic', minWave:20, apply:p => { p.dmgMult *= 1.5; p.maxHp = Math.floor(p.maxHp * 0.75); p.hp = Math.min(p.hp, p.maxHp); } },
+  { id:'curse_speed', name:'Адреналин',       desc:'+30% скорости, но −15% макс HP', rarity:'epic', minWave:20, apply:p => { p.speed *= 1.3; p.maxHp = Math.floor(p.maxHp * 0.85); p.hp = Math.min(p.hp, p.maxHp); } },
+  { id:'curse_rate',  name:'Перегрев',        desc:'+30% скорострельности, но −10% макс HP', rarity:'epic', minWave:22, apply:p => { p.fireRateMult *= 0.7; p.maxHp = Math.floor(p.maxHp * 0.9); p.hp = Math.min(p.hp, p.maxHp); } }
 ];
 
 // ========== СОСТОЯНИЕ ==========
@@ -181,7 +192,8 @@ const game = {
   player:null, zombies:[], bullets:[], enemyBullets:[], particles:[], pickups:[],
   obstacles:[], decorations:[], patches:[], world:null, mapKey:null,
   spawnQueue:0, spawnTimer:0, waveActive:false,
-  lastTime:0, screenShake:0, nextId:1, waveBanner:0, boss:null
+  lastTime:0, screenShake:0, nextId:1, waveBanner:0,
+  bosses:[], hazards:[], activeMods:[], waveTimer:0
 };
 
 const camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
@@ -282,7 +294,7 @@ function startGame(mapKey, classKey) {
     wave: 1, score: 0, kills: 0,
     spawnQueue: 0, spawnTimer: 0, waveActive: false,
     running: true, lastTime: 0, screenShake: 0, nextId: 1,
-    boss: null, waveBanner: 0
+    bosses: [], hazards: [], activeMods: [], waveBanner: 0, waveTimer: 0
   });
 
   camera.x = clamp(p.x - W/2, 0, world.w - W);
@@ -293,15 +305,30 @@ function startGame(mapKey, classKey) {
 
 function startWave() {
   game.waveActive = true;
-  game.waveBanner = 2.0;
+  game.waveBanner = 2.5;
+  game.activeMods = [];
+
+  const modCount = game.wave >= 30 ? 3 : game.wave >= 20 ? 2 : game.wave >= 10 ? 1 : 0;
+  const shuffled = [...WAVE_MODS].sort(() => Math.random() - 0.5);
+  for (let i = 0; i < modCount; i++) game.activeMods.push(shuffled[i]);
+
+  const hasMod = id => game.activeMods.some(m => m.id === id);
 
   if (game.wave % 5 === 0) {
-    game.spawnQueue = 2 + Math.floor(game.wave / 2);
-    spawnBoss();
+    const bossCount = game.wave >= 35 ? 3 : game.wave >= 25 ? 2 : 1;
+    game.spawnQueue = hasMod('horde')
+      ? Math.floor((2 + Math.floor(game.wave / 2)) * 1.5)
+      : (2 + Math.floor(game.wave / 2));
+    spawnBosses(bossCount);
+    if (game.wave >= 20) game.spawnQueue = 9999;
   } else {
-    game.spawnQueue = 5 + game.wave * 2;
+    let q = 5 + game.wave * 2;
+    if (hasMod('horde')) q = Math.floor(q * 1.5);
+    game.spawnQueue = q;
   }
+
   game.spawnTimer = 0.6;
+  game.waveTimer = game.wave >= 15 ? (60 + game.wave * 2) : 0;
 }
 
 function endWave() {
@@ -320,7 +347,7 @@ function pickUpgrades() {
   else                 weights = { common: 15, rare: 45, epic: 40 };
 
   const result = [];
-  const available = [...UPGRADES];
+  const available = UPGRADES.filter(u => !u.minWave || game.wave >= u.minWave);
   for (let i = 0; i < 3; i++) {
     if (available.length === 0) break;
     const roll = Math.random() * 100;
@@ -590,8 +617,7 @@ function generateObstacles(mapKey, world) {
 
 function generateDecorations(mapKey, world) {
   const dec = [];
-  const count = 80;
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < 80; i++) {
     dec.push({
       kind: mapKey,
       x: Math.random() * world.w,
@@ -606,8 +632,7 @@ function generateDecorations(mapKey, world) {
 
 function generatePatches(world) {
   const patches = [];
-  const count = 22;
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < 22; i++) {
     patches.push({
       x: Math.random() * world.w,
       y: Math.random() * world.h,
@@ -620,6 +645,12 @@ function generatePatches(world) {
 
 // ========== СПАВН ==========
 function spawnZombie() {
+  if (game.wave >= 18 && Math.random() < 0.15) {
+    spawnPair();
+    return;
+  }
+
+  const mods = game.activeMods.map(m => m.id);
   const roll = Math.random();
   let typeKey;
   if (game.wave >= 4 && roll < 0.12)      typeKey = 'exploder';
@@ -627,6 +658,8 @@ function spawnZombie() {
   else if (game.wave >= 2 && roll < 0.40) typeKey = 'runner';
   else if (roll < 0.55)                   typeKey = 'brute';
   else                                    typeKey = 'walker';
+
+  if (mods.includes('swarm') && typeKey !== 'runner' && Math.random() < 0.3) typeKey = 'runner';
 
   const t = ZOMBIE_TYPES[typeKey];
   const p = game.player;
@@ -641,56 +674,117 @@ function spawnZombie() {
   }
 
   const hpScale = 1 + (game.wave - 1) * 0.18;
-  game.zombies.push({
+  let hp = t.hp * hpScale;
+  let speed = t.speed * (1 + (game.wave - 1) * 0.03);
+  if (mods.includes('berserk')) speed *= 1.35;
+  if (mods.includes('armored')) hp *= 1.4;
+
+  const z = {
     id: game.nextId++,
     type: typeKey, x, y,
-    hp: t.hp * hpScale, maxHp: t.hp * hpScale,
-    r: t.r,
-    speed: t.speed * (1 + (game.wave - 1) * 0.03),
+    hp, maxHp: hp, r: t.r, speed,
     dmg: t.dmg + game.wave * 0.4,
-    score: t.score,
-    color: t.color,
+    score: t.score, color: t.color,
     ranged: t.ranged || false, range: t.range || 0, projSpeed: t.projSpeed || 0,
-    explodes: t.explodes || false, explosionRadius: t.explosionRadius || 0,
+    explodes: t.explodes || mods.includes('explosive') || false,
+    explosionRadius: t.explosionRadius || (mods.includes('explosive') ? 60 : 0),
     hitFlash: 0, atkCd: 0,
     avoidDir: Math.random() < 0.5 ? 1 : -1,
     stuckTimer: 0
-  });
-}
+  };
 
-function spawnBoss() {
-  const idx = Math.floor(game.wave / 5 - 1) % BOSS_TYPES.length;
-  const t = BOSS_TYPES[idx];
-  const waveScale = 1 + (game.wave - 1) * 0.08;
-  const hp = 500 * t.hpMul * waveScale;
-
-  const p = game.player;
-  const dist = Math.max(W, H) * 0.72;
-  let x, y;
-  for (let i = 0; i < 25; i++) {
-    const ang = Math.random() * Math.PI * 2;
-    x = clamp(p.x + Math.cos(ang) * dist, t.r + 40, game.world.w - t.r - 40);
-    y = clamp(p.y + Math.sin(ang) * dist, t.r + 40, game.world.h - t.r - 40);
-    if (!collidesAnyObstacle(x, y, t.r + 10, game.obstacles)) break;
+  if (game.wave >= 12 && Math.random() < 0.12) {
+    const affix = ELITE_AFFIXES[Math.floor(Math.random() * ELITE_AFFIXES.length)];
+    z.elite = affix;
+    z.hp *= affix.hpMult;
+    z.maxHp = z.hp;
+    z.speed *= affix.speedMult;
+    if (affix.explodes) { z.explodes = true; z.explosionRadius = 70; }
+    if (affix.regen) z.regen = affix.regen;
+    if (affix.dmgReduce) z.dmgReduce = affix.dmgReduce;
+    if (affix.leavesPoison) z.leavesPoison = true;
   }
 
-  const boss = {
-    id: game.nextId++,
-    type: 'boss', isBoss: true, bossIndex: idx, name: t.name,
-    x, y,
-    hp, maxHp: hp,
-    r: t.r, speed: t.speed, dmg: t.dmg + game.wave * 0.4,
-    score: 500, color: t.color,
-    attackSet: t.attacks,
-    atkCd: 2.5, contactCd: 0,
-    state: 'idle', stateTimer: 0,
-    chargeDir: { x: 0, y: 0 },
-    hitFlash: 0,
-    avoidDir: Math.random() < 0.5 ? 1 : -1,
-    stuckTimer: 0
+  game.zombies.push(z);
+}
+
+function spawnPair() {
+  const p = game.player;
+  const dist = Math.max(W, H) * 0.72;
+  let bx, by;
+  for (let i = 0; i < 25; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    bx = clamp(p.x + Math.cos(ang) * dist, 80, game.world.w - 80);
+    by = clamp(p.y + Math.sin(ang) * dist, 80, game.world.h - 80);
+    if (!collidesAnyObstacle(bx, by, 40, game.obstacles)) break;
+  }
+
+  const mods = game.activeMods.map(m => m.id);
+  const bSpeedMul = mods.includes('berserk') ? 1.35 : 1;
+  const bHpMul = mods.includes('armored') ? 1.4 : 1;
+
+  const hpScale = 1 + (game.wave - 1) * 0.18;
+  const bt = ZOMBIE_TYPES['brute'];
+  const st = ZOMBIE_TYPES['spitter'];
+
+  const brute = {
+    id: game.nextId++, type:'brute', x: bx, y: by,
+    hp: bt.hp * hpScale * 1.6 * bHpMul, maxHp: bt.hp * hpScale * 1.6 * bHpMul,
+    r: bt.r * 1.15, speed: bt.speed * bSpeedMul,
+    dmg: bt.dmg + game.wave * 0.4, score: bt.score * 2, color: bt.color,
+    ranged:false, range:0, projSpeed:0, explodes:false, explosionRadius:0,
+    hitFlash:0, atkCd:0, avoidDir:1, stuckTimer:0
   };
-  game.zombies.push(boss);
-  game.boss = boss;
+
+  const spitter = {
+    id: game.nextId++, type:'spitter', x: bx + rand(-30,30), y: by - 40,
+    hp: st.hp * hpScale * bHpMul, maxHp: st.hp * hpScale * bHpMul,
+    r: st.r, speed: st.speed * bSpeedMul,
+    dmg: st.dmg + game.wave * 0.4, score: st.score, color: st.color,
+    ranged:true, range: st.range, projSpeed: st.projSpeed,
+    explodes:false, explosionRadius:0,
+    hitFlash:0, atkCd:0, avoidDir:1, stuckTimer:0,
+    followTarget: brute.id
+  };
+
+  game.zombies.push(brute, spitter);
+}
+
+function spawnBosses(count) {
+  for (let i = 0; i < count; i++) {
+    const idx = (Math.floor(game.wave / 5 - 1) + i) % BOSS_TYPES.length;
+    const t = BOSS_TYPES[idx];
+    const waveScale = 1 + (game.wave - 1) * 0.08;
+    const hp = 500 * t.hpMul * waveScale * (count > 1 ? 0.7 : 1);
+
+    const p = game.player;
+    const dist = Math.max(W, H) * (0.72 + i * 0.15);
+    let x, y;
+    for (let k = 0; k < 25; k++) {
+      const ang = Math.random() * Math.PI * 2;
+      x = clamp(p.x + Math.cos(ang) * dist, t.r + 40, game.world.w - t.r - 40);
+      y = clamp(p.y + Math.sin(ang) * dist, t.r + 40, game.world.h - t.r - 40);
+      if (!collidesAnyObstacle(x, y, t.r + 10, game.obstacles)) break;
+    }
+
+    const boss = {
+      id: game.nextId++,
+      type: 'boss', isBoss: true, bossIndex: idx, name: t.name,
+      x, y,
+      hp, maxHp: hp,
+      r: t.r, speed: t.speed, dmg: t.dmg + game.wave * 0.4,
+      score: 500, color: t.color,
+      attackSet: [...t.attacks],
+      atkCd: 2.5, contactCd: 0,
+      state: 'idle', stateTimer: 0,
+      chargeDir: { x: 0, y: 0 },
+      hitFlash: 0, enraged: false,
+      avoidDir: Math.random() < 0.5 ? 1 : -1,
+      stuckTimer: 0
+    };
+    game.zombies.push(boss);
+    game.bosses.push(boss);
+  }
 }
 </script>
 <script>
@@ -802,6 +896,16 @@ function updateBoss(b, dt, p) {
   b.hitFlash = Math.max(0, b.hitFlash - dt);
   b.contactCd -= dt;
 
+  if (!b.enraged && b.hp / b.maxHp < 0.35) {
+    b.enraged = true;
+    b.speed *= 1.3;
+    b.atkCd = Math.min(b.atkCd, 1);
+    const extra = BOSS_TYPES[b.bossIndex].attacks;
+    for (const atk of extra) if (!b.attackSet.includes(atk)) b.attackSet.push(atk);
+    spawnParticles(b.x, b.y, 35, '#fbbf24');
+    game.screenShake = 18;
+  }
+
   if (b.state === 'idle') {
     const dx = p.x - b.x, dy = p.y - b.y;
     const d = Math.hypot(dx, dy) || 1;
@@ -823,7 +927,7 @@ function updateBoss(b, dt, p) {
     b.y += b.chargeDir.y * 340 * dt;
     if (collidesAnyObstacle(b.x, b.y, b.r, game.obstacles)) {
       pushOutOfObstacles(b, game.obstacles);
-      b.state = 'idle'; b.atkCd = 2;
+      b.state = 'idle'; b.atkCd = b.enraged ? 1.2 : 2;
       spawnParticles(b.x, b.y, 15, '#9ca3af');
       game.screenShake = Math.min(game.screenShake + 6, 14);
     }
@@ -831,9 +935,9 @@ function updateBoss(b, dt, p) {
       p.hp -= b.dmg * 1.2;
       game.screenShake = Math.min(game.screenShake + 10, 18);
       spawnParticles(p.x, p.y, 12, '#f87171');
-      b.state = 'idle'; b.atkCd = 2;
+      b.state = 'idle'; b.atkCd = b.enraged ? 1.2 : 2;
     }
-    if (b.stateTimer <= 0) { b.state = 'idle'; b.atkCd = 2; }
+    if (b.stateTimer <= 0) { b.state = 'idle'; b.atkCd = b.enraged ? 1.2 : 2; }
     b.x = clamp(b.x, b.r, game.world.w - b.r);
     b.y = clamp(b.y, b.r, game.world.h - b.r);
   }
@@ -842,6 +946,7 @@ function updateBoss(b, dt, p) {
 function update(dt) {
   const p = game.player;
   const s = stats(p);
+  const mods = game.activeMods.map(m => m.id);
 
   game.waveBanner = Math.max(0, game.waveBanner - dt);
 
@@ -904,7 +1009,9 @@ function update(dt) {
         if (b.hitIds.includes(z.id)) continue;
         if (Math.hypot(z.x - b.x, z.y - b.y) < z.r + 3) {
           b.hitIds.push(z.id);
-          z.hp -= b.dmg;
+          let dmg = b.dmg;
+          if (z.dmgReduce) dmg *= (1 - z.dmgReduce);
+          z.hp -= dmg;
           z.hitFlash = 0.08;
           spawnParticles(b.x, b.y, 4, '#fbbf24');
           if (b.explosive) explodeAt(b.x, b.y, 50, b.dmg * 0.5, '#f97316');
@@ -932,13 +1039,13 @@ function update(dt) {
 
       if (inMelee) {
         if (z.atkCd <= 0) {
-          z.atkCd = 0.6;
+          z.atkCd = mods.includes('frenzy') ? 0.3 : 0.6;
           p.hp -= z.dmg;
           game.screenShake = Math.min(game.screenShake + 6, 14);
           spawnParticles(p.x, p.y, 8, '#f87171');
         }
       } else if (inRange && z.atkCd <= 0) {
-        z.atkCd = 2.0;
+        z.atkCd = mods.includes('frenzy') ? 1.0 : 2.0;
         const ang = Math.atan2(dy, dx);
         game.enemyBullets.push({
           x: z.x, y: z.y,
@@ -946,11 +1053,30 @@ function update(dt) {
           dmg: z.dmg, color: z.color, dist: 0, maxDist: 500
         });
       } else {
-        moveZombieAroundObstacles(z, dx, dy, z.speed, dt);
+        if (z.followTarget) {
+          const host = game.zombies.find(g => g.id === z.followTarget);
+          if (host) {
+            const ang = Math.atan2(host.y - p.y, host.x - p.x);
+            const tx = host.x + Math.cos(ang) * 40;
+            const ty = host.y + Math.sin(ang) * 40;
+            const fdx = tx - z.x, fdy = ty - z.y, fd = Math.hypot(fdx, fdy) || 1;
+            if (fd > 6) moveZombieAroundObstacles(z, fdx, fdy, z.speed * 1.1, dt);
+          } else {
+            moveZombieAroundObstacles(z, dx, dy, z.speed, dt);
+          }
+        } else {
+          moveZombieAroundObstacles(z, dx, dy, z.speed, dt);
+        }
       }
     }
 
     z.hitFlash = Math.max(0, z.hitFlash - dt);
+
+    // Регенерация
+    if (z.hp > 0 && z.hp < z.maxHp) {
+      if (mods.includes('regen')) z.hp = Math.min(z.maxHp, z.hp + z.maxHp * 0.02 * dt);
+      if (z.regen) z.hp = Math.min(z.maxHp, z.hp + z.maxHp * z.regen * dt);
+    }
 
     if (z.hp <= 0) {
       game.zombies.splice(i, 1);
@@ -959,18 +1085,33 @@ function update(dt) {
       spawnParticles(z.x, z.y, z.isBoss ? 40 : 12, z.color);
       if (p.vamp > 0) p.hp = Math.min(p.maxHp, p.hp + p.vamp);
 
+      if (z.leavesPoison || z.type === 'spitter') {
+        game.hazards.push({
+          x: z.x, y: z.y, r: 40, life: 8, maxLife: 8, dmgPerSec: 6,
+          color: z.leavesPoison ? '#22c55e' : '#84cc16'
+        });
+      }
+
       if (z.explodes) {
         explodeAt(z.x, z.y, z.explosionRadius, z.dmg, z.color);
         if (Math.hypot(p.x - z.x, p.y - z.y) < z.explosionRadius) p.hp -= z.dmg;
       }
+
       if (z.isBoss) {
-        game.boss = null;
+        game.bosses = game.bosses.filter(b => b.id !== z.id);
         game.screenShake = 20;
         for (let k = 0; k < 5; k++) {
           game.pickups.push({ x: z.x + rand(-40,40), y: z.y + rand(-40,40), r: 9, life: 20, bob: Math.random()*6.28 });
         }
-      } else if (Math.random() < 0.16) {
-        game.pickups.push({ x: z.x, y: z.y, r: 9, life: 12, bob: Math.random() * 6.28 });
+      } else {
+        const dropRate = Math.max(0.05, 0.16 - Math.floor(Math.max(0, game.wave - 15) / 5) * 0.02);
+        if (Math.random() < dropRate) {
+          game.pickups.push({
+            x: z.x, y: z.y, r: 9,
+            life: game.wave >= 15 ? 8 : 12,
+            bob: Math.random() * 6.28
+          });
+        }
       }
     }
   }
@@ -1011,7 +1152,7 @@ function update(dt) {
     pk.life -= dt; pk.bob += dt * 4;
     const d = Math.hypot(p.x - pk.x, p.y - pk.y);
     if (d < p.r + pk.r) {
-      p.hp = Math.min(p.maxHp, p.hp + 20);
+      p.hp = Math.min(p.maxHp, p.hp + (game.wave >= 15 ? 15 : 20));
       game.pickups.splice(i, 1);
       spawnParticles(pk.x, pk.y, 10, '#4ade80');
       continue;
@@ -1049,6 +1190,26 @@ function update(dt) {
     }
   }
 
+  // Таймер волны
+  if (game.waveTimer > 0) {
+    game.waveTimer -= dt;
+    if (game.waveTimer <= 0) {
+      game.waveTimer = 0;
+      game.screenShake = 16;
+      for (let i = 0; i < 20; i++) spawnZombie();
+    }
+  }
+
+  // Хазарды
+  for (let i = game.hazards.length - 1; i >= 0; i--) {
+    const h = game.hazards[i];
+    h.life -= dt;
+    if (h.life <= 0) { game.hazards.splice(i, 1); continue; }
+    if (Math.hypot(p.x - h.x, p.y - h.y) < h.r + p.r) {
+      p.hp -= h.dmgPerSec * dt;
+    }
+  }
+
   if (p.hp <= 0) { p.hp = 0; gameOver(); }
 }
 
@@ -1071,9 +1232,7 @@ function drawObstacle(o) {
     ctx.fillStyle = '#3b2412';
     ctx.beginPath(); ctx.arc(o.x, o.y + o.r*0.15, o.r*0.35, 0, Math.PI*2); ctx.fill();
     const g = ctx.createRadialGradient(o.x - o.r*0.3, o.y - o.r*0.4, o.r*0.2, o.x, o.y, o.r*1.15);
-    g.addColorStop(0, '#22c55e');
-    g.addColorStop(0.7, '#15803d');
-    g.addColorStop(1, '#052e16');
+    g.addColorStop(0, '#22c55e'); g.addColorStop(0.7, '#15803d'); g.addColorStop(1, '#052e16');
     ctx.fillStyle = g;
     for (let i = 0; i < 5; i++) {
       const a = i / 5 * Math.PI * 2 + o.seed;
@@ -1089,9 +1248,8 @@ function drawObstacle(o) {
     ctx.ellipse(o.x, o.y + o.r*0.5, o.r*0.95, o.r*0.35, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.beginPath();
-    const pts = 7;
-    for (let i = 0; i < pts; i++) {
-      const a = i / pts * Math.PI * 2;
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * Math.PI * 2;
       const rad = o.r * (0.82 + Math.sin(o.seed + i * 2.3) * 0.2);
       const px = o.x + Math.cos(a) * rad;
       const py = o.y + Math.sin(a) * rad;
@@ -1099,12 +1257,9 @@ function drawObstacle(o) {
     }
     ctx.closePath();
     const g = ctx.createRadialGradient(o.x - o.r*0.3, o.y - o.r*0.4, o.r*0.15, o.x, o.y, o.r);
-    g.addColorStop(0, '#94a3b8');
-    g.addColorStop(1, '#1e293b');
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2; ctx.stroke();
+    g.addColorStop(0, '#94a3b8'); g.addColorStop(1, '#1e293b');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
     ctx.beginPath();
     ctx.ellipse(o.x - o.r*0.35, o.y - o.r*0.35, o.r*0.25, o.r*0.15, -0.5, 0, Math.PI*2);
@@ -1127,20 +1282,14 @@ function drawObstacle(o) {
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.fillRect(o.x + 4, o.y + 6, o.w, o.h);
     const g = ctx.createLinearGradient(o.x, o.y, o.x + o.w, o.y + o.h);
-    g.addColorStop(0, '#a16207');
-    g.addColorStop(1, '#713f12');
-    ctx.fillStyle = g;
-    ctx.fillRect(o.x, o.y, o.w, o.h);
-    ctx.strokeStyle = '#451a03';
-    ctx.lineWidth = 3;
+    g.addColorStop(0, '#a16207'); g.addColorStop(1, '#713f12');
+    ctx.fillStyle = g; ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.strokeStyle = '#451a03'; ctx.lineWidth = 3;
     ctx.strokeRect(o.x + 1.5, o.y + 1.5, o.w - 3, o.h - 3);
-    ctx.strokeStyle = 'rgba(69,26,3,0.6)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(69,26,3,0.6)'; ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(o.x + 6, o.y + 6);
-    ctx.lineTo(o.x + o.w - 6, o.y + o.h - 6);
-    ctx.moveTo(o.x + o.w - 6, o.y + 6);
-    ctx.lineTo(o.x + 6, o.y + o.h - 6);
+    ctx.moveTo(o.x + 6, o.y + 6); ctx.lineTo(o.x + o.w - 6, o.y + o.h - 6);
+    ctx.moveTo(o.x + o.w - 6, o.y + 6); ctx.lineTo(o.x + 6, o.y + o.h - 6);
     ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(o.x + 3, o.y + 3, o.w - 6, 3);
@@ -1150,12 +1299,10 @@ function drawObstacle(o) {
     ctx.ellipse(o.x, o.y + o.r*0.5, o.r*0.9, o.r*0.35, 0, 0, Math.PI*2);
     ctx.fill();
     const g = ctx.createRadialGradient(o.x - o.r*0.3, o.y - o.r*0.3, o.r*0.2, o.x, o.y, o.r);
-    g.addColorStop(0, '#ef4444');
-    g.addColorStop(1, '#7f1d1d');
+    g.addColorStop(0, '#ef4444'); g.addColorStop(1, '#7f1d1d');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#450a0a';
-    ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 2; ctx.stroke();
     ctx.strokeStyle = 'rgba(69,10,10,0.8)';
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r*0.7, 0, Math.PI*2); ctx.stroke();
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r*0.35, 0, Math.PI*2); ctx.stroke();
@@ -1165,17 +1312,12 @@ function drawObstacle(o) {
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(o.x + 6, o.y + 8, o.w, o.h);
     const g = ctx.createLinearGradient(o.x, o.y, o.x, o.y + o.h);
-    g.addColorStop(0, '#475569');
-    g.addColorStop(1, '#1e293b');
-    ctx.fillStyle = g;
-    ctx.fillRect(o.x, o.y, o.w, o.h);
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2.5;
+    g.addColorStop(0, '#475569'); g.addColorStop(1, '#1e293b');
+    ctx.fillStyle = g; ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5;
     ctx.strokeRect(o.x + 1, o.y + 1, o.w - 2, o.h - 2);
     ctx.fillStyle = 'rgba(15,23,42,0.7)';
-    for (let i = 0; i < 4; i++) {
-      ctx.fillRect(o.x + 8, o.y + 10 + i * 12, o.w - 16, 6);
-    }
+    for (let i = 0; i < 4; i++) ctx.fillRect(o.x + 8, o.y + 10 + i * 12, o.w - 16, 6);
     ctx.fillStyle = '#4ade80';
     ctx.beginPath(); ctx.arc(o.x + o.w - 12, o.y + 12, 3, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#ef4444';
@@ -1186,13 +1328,9 @@ function drawObstacle(o) {
     ctx.ellipse(o.x, o.y + o.r*0.6, o.r*0.85, o.r*0.35, 0, 0, Math.PI*2);
     ctx.fill();
     const g = ctx.createLinearGradient(o.x - o.r*0.5, o.y, o.x + o.r*0.5, o.y);
-    g.addColorStop(0, '#166534');
-    g.addColorStop(0.5, '#22c55e');
-    g.addColorStop(1, '#15803d');
+    g.addColorStop(0, '#166534'); g.addColorStop(0.5, '#22c55e'); g.addColorStop(1, '#15803d');
     ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(o.x, o.y, o.r*0.5, o.r, 0, 0, Math.PI*2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(o.x, o.y, o.r*0.5, o.r, 0, 0, Math.PI*2); ctx.fill();
     ctx.beginPath();
     ctx.ellipse(o.x - o.r*0.7, o.y - o.r*0.2, o.r*0.28, o.r*0.5, 0.3, 0, Math.PI*2);
     ctx.ellipse(o.x + o.r*0.7, o.y + o.r*0.1, o.r*0.28, o.r*0.45, -0.3, 0, Math.PI*2);
@@ -1206,11 +1344,8 @@ function drawObstacle(o) {
     ctx.ellipse(o.x, o.y + o.r*0.5, o.r*0.9, o.r*0.35, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#e2e8f0';
-    ctx.beginPath();
-    ctx.ellipse(o.x, o.y, o.r*0.6, o.r*0.55, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#94a3b8';
-    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(o.x, o.y, o.r*0.6, o.r*0.55, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r*0.6, 0, Math.PI*2); ctx.stroke();
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
@@ -1248,9 +1383,7 @@ function drawDecoration(d) {
     ctx.fill();
   } else if (d.kind === 'desert') {
     ctx.fillStyle = 'rgba(180,150,100,0.16)';
-    ctx.beginPath();
-    ctx.arc(d.x, d.y, d.size * 0.35, 0, Math.PI*2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(d.x, d.y, d.size * 0.35, 0, Math.PI*2); ctx.fill();
   }
 }
 
@@ -1265,14 +1398,12 @@ function drawPlayer(p) {
   ctx.ellipse(p.x, p.y + p.r * 0.7, p.r * 1.1, p.r * 0.45, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // Ноги
   ctx.fillStyle = shade(c.color, -90);
   ctx.beginPath();
   ctx.ellipse(p.x - 4, p.y + p.r*0.35 + legSwing, 3.5, 5, 0, 0, Math.PI*2);
   ctx.ellipse(p.x + 4, p.y + p.r*0.35 - legSwing, 3.5, 5, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // Оружие (за спиной)
   ctx.save();
   ctx.translate(p.x, p.y + bob);
   ctx.rotate(p.lastAim);
@@ -1280,24 +1411,18 @@ function drawPlayer(p) {
   ctx.fillRect(p.r * 0.4, -3, p.r * 1.1, 6);
   ctx.fillStyle = '#374151';
   ctx.fillRect(p.r * 1.2, -4, p.r * 0.35, 8);
-  if (stats(p).fireRate > 0 && p.fireCd > stats(p).fireRate * 0.82) {
+  if (p.fireCd > stats(p).fireRate * 0.82) {
     ctx.fillStyle = '#fde047';
-    ctx.beginPath();
-    ctx.arc(p.r * 1.55, 0, 5, 0, Math.PI*2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(p.r * 1.55, 0, 5, 0, Math.PI*2); ctx.fill();
   }
   ctx.restore();
 
-  // Тело
   const g = ctx.createRadialGradient(p.x - p.r*0.4, p.y + bob - p.r*0.4, p.r*0.2, p.x, p.y + bob, p.r);
-  g.addColorStop(0, shade(c.color, 40));
-  g.addColorStop(1, shade(c.color, -50));
+  g.addColorStop(0, shade(c.color, 40)); g.addColorStop(1, shade(c.color, -50));
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(p.x, p.y + bob, p.r * 0.92, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#0a0e14';
-  ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = '#0a0e14'; ctx.lineWidth = 2; ctx.stroke();
 
-  // Классовые аксессуары
   if (p.class === 'soldier') {
     ctx.fillStyle = '#1f2937';
     ctx.beginPath(); ctx.arc(p.x, p.y + bob - 2, p.r * 0.68, Math.PI, 0); ctx.fill();
@@ -1320,7 +1445,6 @@ function drawPlayer(p) {
     ctx.beginPath(); ctx.arc(p.x, p.y + bob, p.r * 0.88, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
   }
 
-  // Визар / глаза
   ctx.fillStyle = '#0a0e14';
   ctx.beginPath();
   ctx.ellipse(p.x, p.y + bob - p.r*0.32, p.r*0.5, p.r*0.18, 0, 0, Math.PI*2);
@@ -1344,14 +1468,12 @@ function drawZombie(z) {
   ctx.ellipse(z.x, z.y + z.r * 0.75, z.r * 1.05, z.r * 0.4, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // Ноги
   ctx.fillStyle = shade(z.color, -85);
   ctx.beginPath();
   ctx.ellipse(z.x - z.r*0.28, z.y + z.r*0.5 + legSwing, z.r*0.24, z.r*0.4, 0, 0, Math.PI*2);
   ctx.ellipse(z.x + z.r*0.28, z.y + z.r*0.5 - legSwing, z.r*0.24, z.r*0.4, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // Руки тянутся к игроку
   const angToPlayer = Math.atan2(game.player.y - z.y, game.player.x - z.x);
   ctx.save();
   ctx.translate(z.x, z.y + bob);
@@ -1363,19 +1485,14 @@ function drawZombie(z) {
   ctx.fill();
   ctx.restore();
 
-  // Тело
   const g = ctx.createRadialGradient(z.x - z.r*0.35, z.y + bob - z.r*0.35, z.r*0.2, z.x, z.y + bob, z.r);
-  g.addColorStop(0, shade(z.color, 30));
-  g.addColorStop(1, shade(z.color, -60));
+  g.addColorStop(0, shade(z.color, 30)); g.addColorStop(1, shade(z.color, -60));
   ctx.fillStyle = z.hitFlash > 0 ? '#ffffff' : g;
   ctx.beginPath(); ctx.arc(z.x, z.y + bob, z.r, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = shade(z.color, -85);
-  ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = shade(z.color, -85); ctx.lineWidth = 2; ctx.stroke();
 
-  // Типовые фичи
   if (z.type === 'brute') {
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
     for (let i = 0; i < 6; i++) {
       const a = i / 6 * Math.PI * 2 + performance.now() / 3000;
       ctx.beginPath();
@@ -1384,8 +1501,7 @@ function drawZombie(z) {
       ctx.stroke();
     }
   } else if (z.type === 'runner') {
-    ctx.strokeStyle = z.color + '70';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = z.color + '70'; ctx.lineWidth = 1.5;
     for (let i = 0; i < 3; i++) {
       const offY = (i - 1) * z.r * 0.4;
       ctx.beginPath();
@@ -1396,8 +1512,7 @@ function drawZombie(z) {
   } else if (z.type === 'spitter') {
     ctx.fillStyle = '#84cc16';
     ctx.beginPath(); ctx.arc(z.x, z.y + bob + z.r*0.35, z.r*0.35, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#365314';
-    ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = '#365314'; ctx.lineWidth = 1.5; ctx.stroke();
   } else if (z.type === 'exploder') {
     const pulse = 0.4 + Math.sin(performance.now() / 100) * 0.35;
     ctx.strokeStyle = `rgba(249,115,22,${pulse})`;
@@ -1405,7 +1520,6 @@ function drawZombie(z) {
     ctx.beginPath(); ctx.arc(z.x, z.y + bob, z.r * (1.1 + pulse * 0.3), 0, Math.PI*2); ctx.stroke();
   }
 
-  // Глаза
   ctx.fillStyle = '#fde047';
   ctx.beginPath();
   ctx.arc(z.x - z.r*0.3, z.y + bob - z.r*0.22, z.r*0.14, 0, Math.PI*2);
@@ -1424,16 +1538,32 @@ function drawZombie(z) {
     ctx.fillStyle = '#ef4444';
     ctx.fillRect(z.x - z.r, z.y - z.r - 8, bw * Math.max(0, z.hp / z.maxHp), 3);
   }
+
+  // Маркер элиты
+  if (z.elite) {
+    ctx.strokeStyle = z.elite.color;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.arc(z.x, z.y + bob, z.r + 5, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = z.elite.color;
+    ctx.beginPath();
+    ctx.moveTo(z.x, z.y + bob - z.r - 14);
+    ctx.lineTo(z.x - 5, z.y + bob - z.r - 6);
+    ctx.lineTo(z.x + 5, z.y + bob - z.r - 6);
+    ctx.closePath();
+    ctx.fill();
+  }
 }
 
 function drawBoss(b) {
   if (!isVisible(b.x, b.y, b.r + 60)) return;
 
-  const pulse = 0.4 + Math.sin(performance.now() / 150) * 0.3;
+  const pulse = 0.4 + Math.sin(performance.now() / (b.enraged ? 80 : 150)) * (b.enraged ? 0.5 : 0.3);
   const auraR = b.r * (1.6 + pulse * 0.4);
   const ag = ctx.createRadialGradient(b.x, b.y, b.r * 0.5, b.x, b.y, auraR);
-  ag.addColorStop(0, b.color + '60');
-  ag.addColorStop(1, b.color + '00');
+  ag.addColorStop(0, (b.enraged ? '#fbbf24' : b.color) + '60');
+  ag.addColorStop(1, (b.enraged ? '#fbbf24' : b.color) + '00');
   ctx.fillStyle = ag;
   ctx.beginPath(); ctx.arc(b.x, b.y, auraR, 0, Math.PI*2); ctx.fill();
 
@@ -1443,14 +1573,11 @@ function drawBoss(b) {
   ctx.fill();
 
   const g = ctx.createRadialGradient(b.x - b.r*0.3, b.y - b.r*0.3, b.r*0.2, b.x, b.y, b.r);
-  g.addColorStop(0, shade(b.color, 40));
-  g.addColorStop(1, shade(b.color, -70));
+  g.addColorStop(0, shade(b.color, 40)); g.addColorStop(1, shade(b.color, -70));
   ctx.fillStyle = b.hitFlash > 0 ? '#ffffff' : g;
   ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#0a0e14';
-  ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = '#0a0e14'; ctx.lineWidth = 3; ctx.stroke();
 
-  // Шипы по краю
   ctx.fillStyle = shade(b.color, -70);
   for (let i = 0; i < 8; i++) {
     const a = i / 8 * Math.PI * 2 + performance.now() / 2000;
@@ -1462,19 +1589,17 @@ function drawBoss(b) {
     ctx.fill();
   }
 
-  // 4 глаза
   for (let i = 0; i < 4; i++) {
     const a = i / 4 * Math.PI * 2 + performance.now() / 1500;
     const ex = b.x + Math.cos(a) * b.r * 0.5;
     const ey = b.y + Math.sin(a) * b.r * 0.5;
-    ctx.fillStyle = '#fde047';
+    ctx.fillStyle = b.enraged ? '#fbbf24' : '#fde047';
     ctx.beginPath(); ctx.arc(ex, ey, b.r * 0.13, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#7f1d1d';
     ctx.beginPath(); ctx.arc(ex, ey, b.r * 0.065, 0, Math.PI*2); ctx.fill();
   }
 
-  // Корона
-  ctx.fillStyle = '#fbbf24';
+  ctx.fillStyle = b.enraged ? '#fbbf24' : '#f59e0b';
   const crownY = b.y - b.r - 8;
   ctx.beginPath();
   ctx.moveTo(b.x - b.r * 0.6, crownY + 10);
@@ -1486,8 +1611,7 @@ function drawBoss(b) {
   ctx.lineTo(b.x + b.r * 0.6, crownY + 10);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = '#78350f';
-  ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1.5; ctx.stroke();
 }
 
 // ========== HUD ==========
@@ -1520,7 +1644,9 @@ function drawHUD() {
 
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.fillStyle = CLASSES[p.class].color;
-  ctx.fillText(`ВОЛНА ${game.wave}${game.wave % 5 === 0 ? ' 👑' : ''}`, 16, 62);
+  let waveStr = `ВОЛНА ${game.wave}${game.wave % 5 === 0 ? ' 👑' : ''}`;
+  if (game.waveTimer > 0) waveStr += `  ⏱ ${Math.ceil(game.waveTimer)}`;
+  ctx.fillText(waveStr, 16, 62);
 
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = '#9ca3af';
@@ -1537,22 +1663,25 @@ function drawHUD() {
   ctx.fillText(`Убито: ${game.kills}`, W - 16, 80);
   ctx.textAlign = 'left';
 
-  if (game.boss) {
+  if (game.bosses.length > 0) {
     const bw = Math.min(320, W * 0.7);
     const bx = (W - bw) / 2;
-    const by = 115;
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    roundRect(bx - 3, by - 3, bw + 6, 24, 4); ctx.fill();
-    const bhp = Math.max(0, game.boss.hp / game.boss.maxHp);
-    ctx.fillStyle = game.boss.color;
-    roundRect(bx, by, bw * bhp, 18, 3); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    roundRect(bx, by, bw * bhp, 8, 3); ctx.fill();
-    ctx.fillStyle = '#e6edf3';
-    ctx.font = 'bold 12px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(`👑 ${game.boss.name}`, W/2, by - 8);
-    ctx.textAlign = 'left';
+    for (let i = 0; i < game.bosses.length; i++) {
+      const b = game.bosses[i];
+      const by = 115 + i * 32;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      roundRect(bx - 3, by - 3, bw + 6, 24, 4); ctx.fill();
+      const bhp = Math.max(0, b.hp / b.maxHp);
+      ctx.fillStyle = b.enraged ? '#fbbf24' : b.color;
+      roundRect(bx, by, bw * bhp, 18, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      roundRect(bx, by, bw * bhp, 8, 3); ctx.fill();
+      ctx.fillStyle = '#e6edf3';
+      ctx.font = 'bold 12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${b.enraged ? '🔥' : '👑'} ${b.name}`, W/2, by - 8);
+      ctx.textAlign = 'left';
+    }
   }
 
   if (game.waveBanner > 0) {
@@ -1562,6 +1691,11 @@ function drawHUD() {
     ctx.font = 'bold 24px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText(game.wave % 5 === 0 ? `БОСС-ВОЛНА ${game.wave}` : `ВОЛНА ${game.wave}`, W/2, H/2 - 60);
+    if (game.activeMods.length > 0) {
+      ctx.font = 'bold 14px system-ui';
+      ctx.fillStyle = '#f87171';
+      ctx.fillText(game.activeMods.map(m => m.name).join(' • '), W/2, H/2 - 32);
+    }
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
@@ -1613,6 +1747,20 @@ function draw() {
   // Декор
   for (const d of game.decorations) drawDecoration(d);
 
+  // Лужи-хазарды
+  for (const h of game.hazards) {
+    if (!isVisible(h.x, h.y, h.r + 10)) continue;
+    const t = h.life / h.maxLife;
+    ctx.globalAlpha = 0.3 + t * 0.3;
+    const hg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r);
+    hg.addColorStop(0, h.color + 'cc');
+    hg.addColorStop(0.7, h.color + '55');
+    hg.addColorStop(1, h.color + '00');
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
   // Препятствия
   for (const o of game.obstacles) drawObstacle(o);
 
@@ -1658,14 +1806,14 @@ function draw() {
     ctx.lineWidth = 1; ctx.stroke();
   }
 
-  // Радиус стрельбы (под игроком)
+  // Радиус стрельбы
   const p = game.player;
   const s = stats(p);
   ctx.strokeStyle = 'rgba(74,222,128,0.08)';
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(p.x, p.y, s.range, 0, Math.PI*2); ctx.stroke();
 
-  // Сущности (сортируем по Y для глубины)
+  // Сущности (сортировка по Y для глубины)
   const entities = [...game.zombies, p].sort((a, b) => a.y - b.y);
   for (const e of entities) {
     if (e === p) drawPlayer(e);
@@ -1684,6 +1832,19 @@ function draw() {
     ctx.beginPath();
     ctx.arc(joy.baseX + joy.dx * joy.maxR, joy.baseY + joy.dy * joy.maxR, 24, 0, Math.PI*2);
     ctx.fill();
+  }
+
+  // Туман
+  if (game.activeMods.some(m => m.id === 'fog') && game.player) {
+    const pl = game.player;
+    const sx = pl.x - camera.x, sy = pl.y - camera.y;
+    const visR = Math.min(W, H) * 0.55;
+    const fg = ctx.createRadialGradient(sx, sy, visR * 0.35, sx, sy, visR);
+    fg.addColorStop(0, 'rgba(0,0,0,0)');
+    fg.addColorStop(0.7, 'rgba(0,0,0,0.6)');
+    fg.addColorStop(1, 'rgba(0,0,0,0.92)');
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, 0, W, H);
   }
 
   drawHUD();
