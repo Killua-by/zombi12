@@ -151,7 +151,7 @@
   <h1>Пауза</h1>
   <button class="btn" onclick="togglePause()">Продолжить</button>
   <button class="btn alt" onclick="showSettings(true)">⚙ Настройки</button>
-  <button class="btn red" onclick="quitToMenu()">Сохранить и выйти</button>
+  <button class="btn red" onclick="saveGameState()">Сохранить и выйти</button>
 </div>
 
 <div id="settingsScreen" class="overlay hidden">
@@ -2615,6 +2615,12 @@ canvas.addEventListener('mousedown', e => {
 });
 
 // ========== ЦИКЛ ==========
+ function togglePause() {
+  if (!game.running) return;
+  game.paused = !game.paused;
+  document.getElementById('pauseScreen').classList.toggle('hidden', !game.paused);
+  if (game.paused) game.lastTime = 0;
+}
 function loop(ts) {
   requestAnimationFrame(loop);
   if (!game.lastTime) game.lastTime = ts;
